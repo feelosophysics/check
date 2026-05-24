@@ -11,17 +11,14 @@
 ```text
 .
 ├── agent-app-leak
+├── README.md
+├── diagnose.sh
 ├── b1-2_detailed_study_guide.md
 ├── monitor.sh
 ├── scripts/
 │   ├── monitor.sh
 │   ├── run_agent_case.sh
 │   └── capture_cpu_late.sh
-├── reports/
-│   ├── oom-crash.md
-│   ├── cpu-latency.md
-│   ├── deadlock.md
-│   └── scheduling-analysis.md
 └── evidence/
     ├── run_workspace/
     └── raw/
@@ -36,8 +33,6 @@
 | `scripts/run_agent_case.sh` | 장애 케이스를 반복 실행하기 위한 보조 스크립트 |
 | `scripts/capture_cpu_late.sh` | CPU 케이스의 종료 직전 `top`/`ps` 캡처를 보강하기 위한 스크립트 |
 | `evidence/raw/*.log` | 실제 OrbStack Ubuntu에서 수집한 원본 증거 |
-| `reports/*.md` | 제출 가능한 GitHub Issue 스타일 장애 리포트 |
-| `reports/scheduling-analysis.md` | 보너스 과제인 스케줄링 알고리즘 추론 리포트 |
 
 ## 2. 이 미션의 큰 그림
 
@@ -427,8 +422,6 @@ Priority도 아니다. 특정 스레드가 계속 우선 실행되는 편향이 
 Round-Robin은 여러 작업에 공평한 응답 기회를 준다. 웹 서버처럼 응답성이 중요한 시스템에 어울린다. 단, 컨텍스트 전환 비용이 있고, 순수 처리량이 중요한 배치 작업에서는 최적이 아닐 수 있다.
 
 ## 10. 평가 문항 답변 가이드
-
-이 섹션은 `mission_b1-2.md`에 추가된 평가 문항에 직접 답할 수 있도록 정리한 것이다.
 
 ### 항목 1: 필수 결과물 체크
 
