@@ -11,7 +11,6 @@
 ```text
 .
 ├── agent-app-leak
-├── mission_b1-2.md
 ├── b1-2_detailed_study_guide.md
 ├── monitor.sh
 ├── scripts/
