@@ -15,7 +15,7 @@
 # 1. [Bug-01] OOM Crash - 메모리 임계치 초과 및 자가 보호 정책 분석
 
 ## 1. Description (현상 설명)
-* **발생 현상**: 애플리케이션 `agent-leak-app`을 기동한 후 약 5초~30여 초 이내에 프로세스가 아무런 에러 코드 없이 갑작스럽게 죽어버리고, 프롬프트로 제어권이 튕겨 나옵니다.
+* **발생 현상**: 애플리케이션 `agent-leak-app`을 기동한 후 약 9초 이내에 프로세스가 아무런 에러 코드 없이 갑작스럽게 죽어버리고, 프롬프트로 제어권이 튕겨 나옵니다.
 * **관측 조건**: 메모리 한계 환경변수인 `MEMORY_LIMIT`가 비교적 낮게 설정되어 있을 때 발생이 더 가속화되며, 프로세스가 구동되는 동안 물리 메모리 점유율이 아무런 저항 없이 수직에 가깝게 선형 증가하는 비정상 패턴이 공통적으로 관측됩니다.
 
 ---
@@ -23,24 +23,32 @@
 ## 2. Evidence & Logs (증거 자료)
 
 ### 📊 [monitor.log] 실시간 리소스 관제 로그 발췌 (Before)
-`MEMORY_LIMIT=50` (50MB 제한) 시점의 1초 주기 모니터링 로그입니다. 메모리 점유율(`MEM`)이 기동 직후 매초 급격히 불어나는 양상이 뚜렷이 확인됩니다.
+`MEMORY_LIMIT=100` (100MB 제한) 시점의 1초 주기 모니터링 로그입니다. 수집 주기별 자식 프로세스의 `PID(34111)`와 메모리 점유율(`MEM`)이 선명하게 매치되어 기록되며, 한계에 도달한 직후 프로세스가 사멸하는 흐름이 입증됩니다.
 ```text
-[2026-05-25 09:24:16] PROCESS:agent-leak-app CPU:0.5% MEM:4.8% DISK:408G FIREWALL:active
-[2026-05-25 09:24:17] PROCESS:agent-leak-app CPU:1.2% MEM:5.1% DISK:408G FIREWALL:active
-[2026-05-25 09:24:18] PROCESS:agent-leak-app CPU:1.5% MEM:25.4% DISK:408G FIREWALL:active
-[2026-05-25 09:24:21] PROCESS:agent-leak-app CPU:1.4% MEM:50.2% DISK:408G FIREWALL:active
-[2026-05-25 09:24:22] PROCESS:agent-leak-app STATUS:STOPPED (Not Running)  <-- 크래시 후 프로세스 사멸 감지
+[2026-05-28 05:15:56] PROCESS:agent-leak-app STATUS:STOPPED (Not Running)
+[2026-05-28 05:15:57] PROCESS:agent-leak-app PID:34111 CPU:71.4% MEM:0.1% DISK:411G FIREWALL:active
+[2026-05-28 05:15:58] PROCESS:agent-leak-app PID:34111 CPU:4.5% MEM:0.1% DISK:411G FIREWALL:active
+[2026-05-28 05:15:59] PROCESS:agent-leak-app PID:34111 CPU:4.2% MEM:0.2% DISK:411G FIREWALL:active
+[2026-05-28 05:16:00] PROCESS:agent-leak-app PID:34111 CPU:2.8% MEM:0.2% DISK:411G FIREWALL:active
+[2026-05-28 05:16:01] PROCESS:agent-leak-app PID:34111 CPU:2.1% MEM:0.2% DISK:411G FIREWALL:active
+[2026-05-28 05:16:02] PROCESS:agent-leak-app PID:34111 CPU:2.3% MEM:0.4% DISK:411G FIREWALL:active
+[2026-05-28 05:16:03] PROCESS:agent-leak-app PID:34111 CPU:1.9% MEM:0.4% DISK:411G FIREWALL:active
+[2026-05-28 05:16:04] PROCESS:agent-leak-app PID:34111 CPU:1.6% MEM:0.4% DISK:411G FIREWALL:active
+[2026-05-28 05:16:05] PROCESS:agent-leak-app PID:34111 CPU:2.0% MEM:0.5% DISK:411G FIREWALL:active
+[2026-05-28 05:16:06] PROCESS:agent-leak-app PID:34111 CPU:1.8% MEM:0.5% DISK:411G FIREWALL:active
+[2026-05-28 05:16:07] PROCESS:agent-leak-app PID:34111 CPU:1.6% MEM:0.5% DISK:411G FIREWALL:active
+[2026-05-28 05:16:08] PROCESS:agent-leak-app STATUS:STOPPED (Not Running)  <-- 크래시 후 프로세스 사멸 감지
 ```
 
 ### 📋 [agent_app.log] 애플리케이션 원시 로그 발췌 (Before)
-물리 메모리가 설정값인 `50MB`에 정밀 도달하는 순간, `MemoryGuard` 내부 보호 모듈이 이를 트랩하고 긴급 정지시켰음을 선명하게 보여줍니다.
+물리 메모리가 설정값인 `100MB`에 정밀 도달하는 순간, `MemoryGuard` 내부 보호 모듈이 이를 트랩하고 긴급 정지시켰음을 선명하게 보여줍니다.
 ```text
-2026-05-25 09:24:16,599 [INFO] [SafetyGuard] Process priority lowered (nice=10).
-2026-05-25 09:24:16,599 [INFO] Agent listening at port 15034
-2026-05-25 09:24:18,637 [INFO] [MemoryWorker] Current Heap: 25MB
-2026-05-25 09:24:21,676 [INFO] [MemoryWorker] Current Heap: 50MB
-2026-05-25 09:24:21,676 [CRITICAL] [MemoryGuard] Memory limit exceeded (50MB >= 50MB) / (Recommend Over 256MB)
-2026-05-25 09:24:21,677 [CRITICAL] [MemoryGuard] Self-terminating process 1974 to prevent system instability.
+2026-05-28 05:15:59,392 [INFO] [MemoryWorker] Current Heap: 25MB
+2026-05-28 05:16:02,431 [INFO] [MemoryWorker] Current Heap: 50MB
+2026-05-28 05:16:05,471 [INFO] [MemoryWorker] Current Heap: 75MB
+2026-05-28 05:16:08,510 [INFO] [MemoryWorker] Current Heap: 100MB
+2026-05-28 05:16:08,510 [CRITICAL] [MemoryGuard] Memory limit exceeded (100MB >= 100MB) / (Recommend Over 256MB)
+2026-05-28 05:16:08,510 [CRITICAL] [MemoryGuard] Self-terminating process 34111 to prevent system instability.
 ```
 
 ---
@@ -83,11 +91,11 @@
 ```
 
 ### 📈 Before & After 비교 대조표
-| 분석 지표 | 조치 전 (Before: `MEMORY_LIMIT=50`) | 조치 후 (After: `MEMORY_LIMIT=256`) |
+| 분석 지표 | 조치 전 (Before: `MEMORY_LIMIT=100`) | 조치 후 (After: `MEMORY_LIMIT=256`) |
 | :--- | :--- | :--- |
 | **초기 감지 힙 메모리** | 25 MB | 25 MB |
-| **OOM 강제 셧다운 시점**| 50 MB 도달 시 (기동 5초) | 275 MB 도달 시 (기동 32초) |
-| **프로세스 생존 시간** | **5 초** | **32 초** (생존성 약 6.4배 향상) |
+| **OOM 강제 셧다운 시점**| 100 MB 도달 시 (기동 9초) | 275 MB 도달 시 (기동 32초) |
+| **프로세스 생존 시간** | **9 초** | **32 초** (생존성 약 3.5배 향상) |
 | **누수 성장 패턴 속도** | 매 3초당 +25MB (수직 선형 상승) | 매 3초당 +25MB (수직 선형 상승) |
 
 > [!WARNING]
@@ -195,24 +203,33 @@ CPU 로드가 53%에 도달하는 시점에 Watchdog 안전 한계점 위반 판
 
 #### ① PID 생존 증명 (`ps -ef | grep agent-app-leak`)
 ```text
-f22losophy  52342  12435  0 09:31:00 pts/1    00:00:02 ./agent-app-leak
+f22loso+   38685  2707  0 05:24 pts/2    00:00:00 ./agent-app-leak
+f22loso+   38687 38685  0 05:24 pts/2    00:00:00 ./agent-app-leak
 ```
-* **해석**: 프로세스가 사멸하지 않고 메모리 상에 여전히 살아 숨 쉬고(PID 52342) 있음을 증명합니다.
+* **해석**: 프로세스가 사멸하지 않고 메모리 상에 여전히 살아 숨 쉬고(자식 일꾼 PID 38687) 있음을 증명합니다.
 
-#### ② CPU / 메모리 리소스 소모 정체 증명 (`ps -L -p 52342`)
+#### ② CPU / 메모리 리소스 소모 정체 증명 (`ps -L -p 38687`)
 ```text
   PID   LWP TTY          TIME CMD
-52342 52342 pts/1    00:00:00 agent-app-leak
-52342 52343 pts/1    00:00:01 Thread-A
-52342 52344 pts/1    00:00:01 Thread-B
+38687 38687 pts/2    00:00:00 agent-app-leak
+38687 38688 pts/2    00:00:01 Worker-Thread-1
+38687 38689 pts/2    00:00:01 Worker-Thread-2
 ```
 * **해석**: 경량 프로세스(LWP, 즉 내부 스레드들)가 생성되어 존재하나, CPU 사용 시간이 극도로 0초 근처에서 고착되어 어떤 능동적인 CPU 자원 순환도 수행하지 않고 정지(Sleeping)해 있음을 검증합니다.
 
 #### ③ 로그 스트리밍의 무한 멈춤 (`tail -f agent_app.log`)
 ```text
-2026-05-25 09:31:02,100 [INFO] [Scheduler] Starting task execution...
-2026-05-25 09:31:02,102 [INFO] [Thread-A] Acquired Resource-1. Waiting for Resource-2...
-2026-05-25 09:31:02,102 [INFO] [Thread-B] Acquired Resource-2. Waiting for Resource-1...
+2026-05-28 05:24:21,745 [INFO] [Worker-Thread-1] Process Started. Attempting to lock [Shared_Memory_A]...
+2026-05-28 05:24:21,746 [INFO] [AgentWorker][Worker-Thread-1] LOCK ACQUIRED: [Shared_Memory_A]. (Holding...)
+2026-05-28 05:24:21,746 [INFO] [AgentWorker][Worker-Thread-2] Process Started. Attempting to lock [Socket_Pool_B]...
+2026-05-28 05:24:21,746 [INFO] [AgentWorker][Worker-Thread-1] Processing critical data in Memory A...
+2026-05-28 05:24:21,747 [INFO] [AgentWorker][Worker-Thread-2] LOCK ACQUIRED: [Socket_Pool_B]. (Holding...)
+2026-05-28 05:24:21,746 [INFO] [AgentWorker] Waiting for worker threads to complete transactions...
+2026-05-28 05:24:21,747 [INFO] [AgentWorker][Worker-Thread-2] Establishing network connections in Pool B...
+2026-05-28 05:24:23,748 [INFO] [AgentWorker][Worker-Thread-1] Need resource [Socket_Pool_B] to finish job.
+2026-05-28 05:24:23,749 [INFO] [AgentWorker][Worker-Thread-1] WAITING for [Socket_Pool_B]... (Status: BLOCKED)
+2026-05-28 05:24:23,749 [INFO] [AgentWorker][Worker-Thread-2] Need resource [Shared_Memory_A] to write logs.
+2026-05-28 05:24:23,749 [INFO] [AgentWorker][Worker-Thread-2] WAITING for [Shared_Memory_A]... (Status: BLOCKED)
 <--- [ 이 지점 이후 10분이 지나도 어떤 추가 로그 라인도 출력되지 않고 영구 프리징됨 ] --->
 ```
 
@@ -221,16 +238,16 @@ f22losophy  52342  12435  0 09:31:00 pts/1    00:00:02 ./agent-app-leak
 ## 3. Root Cause Analysis (원인 분석)
 
 ### 🔄 교착상태(Deadlock)의 기술적 성립 원인
-* 본 애플리케이션의 멀티스레드 스케줄러가 활성화되면 `Thread-A`와 `Thread-B`가 병렬 기동됩니다.
-* `Thread-A`는 `Resource-1`을 먼저 획득한 후 `Resource-2`를 대기하고, 동시에 `Thread-B`는 `Resource-2`를 먼저 선점한 상태에서 `Thread-A`가 가진 `Resource-1`이 풀려나기를 대기합니다.
+* 본 애플리케이션의 멀티스레드 스케줄러가 활성화되면 `Worker-Thread-1`과 `Worker-Thread-2`가 병렬 기동됩니다.
+* `Worker-Thread-1`은 `Shared_Memory_A`를 먼저 획득한 후 `Socket_Pool_B`를 대기하고, 동시에 `Worker-Thread-2`는 `Socket_Pool_B`를 먼저 선점한 상태에서 `Worker-Thread-1`이 가진 `Shared_Memory_A`가 풀려나기를 대기합니다.
 * 두 스레드는 기득 자원을 절대로 먼저 양보하지 않고 대기하므로, 상호 간의 순환 관계가 결성되어 락(Lock)에 묶인 채 영원히 잠들게 되는 **교착상태(Deadlock)**에 도달하게 된 것입니다.
 
 ### 🍽️ 교착상태 발생의 4대 필수 조건 대입 증명
 이 장애는 아래의 4가지 조건이 단 하나도 빠짐없이 철저하게 동시 성립하였기에 완벽한 락으로 잠겼습니다.
-1. **상호 배제 (Mutual Exclusion)**: 한 스레드가 자원(예: `Resource-1`)을 획득하면 다른 스레드는 절대 동시에 이를 공유해 점유할 수 없습니다.
-2. **점유 대기 (Hold and Wait)**: `Thread-A`는 이미 획득해 움켜쥔 `Resource-1`을 절대 반납하지 않은 채(Hold), 다음 자원인 `Resource-2`가 풀리기만을 끊임없이 고집스레 대기(Wait)합니다.
+1. **상호 배제 (Mutual Exclusion)**: 한 스레드가 자원(예: `Shared_Memory_A`)을 획득하면 다른 스레드는 절대 동시에 이를 공유해 점유할 수 없습니다.
+2. **점유 대기 (Hold and Wait)**: `Worker-Thread-1`은 이미 획득해 움켜쥔 `Shared_Memory_A`를 절대 반납하지 않은 채(Hold), 다음 자원인 `Socket_Pool_B`가 풀리기만을 끊임없이 고집스레 대기(Wait)합니다.
 3. **비선점 (No Preemption)**: 다른 스레드가 점유한 자원을 운영체제나 타 스레드가 강제로 빼앗을 수(Preempt) 없습니다.
-4. **순환 대기 (Circular Wait)**: A는 B의 자원을 대기하고, B는 A의 자원을 대기하여 대기 고리가 원형(Cycle)을 이루어 꼬리를 뭅니다.
+4. **순환 대기 (Circular Wait)**: 1번은 2번의 자원을 대기하고, 2번은 1번의 자원을 대기하여 대기 고리가 원형(Cycle)을 이루어 꼬리를 뭅니다.
 
 ### 💾 버퍼링(Buffered I/O)과 로그 유실 현상의 공학적 분석
 * **문제 상황**: 데드락 발생 시, 강제 종료(`kill -9`)를 수행하면 마지막의 `Acquired / Waiting` 로그가 종종 디스크 파일에 적히지 않고 유실되는 현상이 관측됩니다.
@@ -264,9 +281,9 @@ f22losophy  52342  12435  0 09:31:00 pts/1    00:00:02 ./agent-app-leak
 | 분석 지표 | 조치 전 (Before: `MULTI_THREAD=true`) | 조치 후 (After: `MULTI_THREAD=false`) |
 | :--- | :--- | :--- |
 | **스레드 가동 방식** | 병렬 멀티 스레드 경쟁 모드 | 단일 스레드 순차 실행 모드 |
-| **자원 경쟁 충돌성** | `Resource-1` & `Resource-2` 동시 접근 | 한 스레드가 끝날 때까지 타 스레드 대기 |
+| **자원 경쟁 충돌성** | `Shared_Memory_A` & `Socket_Pool_B` 동시 접근 | 한 스레드가 끝날 때까지 타 스레드 대기 |
 | **교착 상태(데드락)** | **발생 (영구 먹통, CPU 0% 고착)** | **완벽 회피 및 정상 가동** |
-| **진행 업무 최종 완료** | 영구 미완료 (강제 종료 수동 개입 필요) | **Thread A, B, C 전원 100% 정상 완주** |
+| **진행 업무 최종 완료** | 영구 미완료 (강제 종료 수동 개입 필요) | **워커 스레드 전원 100% 정상 완주** |
 
 ---
 

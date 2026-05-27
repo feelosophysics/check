@@ -45,7 +45,7 @@ while true; do
     # - pgrep 명령어는 실행 중인 프로세스의 이름을 검색하여 일치하는 프로세스 ID(PID)를 찾아 반환합니다.
     # - -f 옵션은 프로세스 실행 명령어 라인 전체(Full command line)를 대상으로 검색하게 만듭니다.
     # - 만약 프로세스가 구동 중이지 않으면 변수가 비어있게 됩니다.
-    PID=$(pgrep -f "agent-app-leak" | head -n 1)
+    PID=$(pgrep -f "agent-app-leak" | sort -n | tail -n 1)
 
     # 2.2 프로세스가 미구동 상태일 때의 대응
     # --------------------------------------------------------------------------
@@ -124,7 +124,7 @@ while true; do
     DISK_FINAL="${DISK_SIZE:-0G}"
     
     # 조립된 완성형 문자열을 tee -a를 통해 화면 표시 및 monitor.log 파일에 계속 누적 추가합니다.
-    echo "[$NOW] PROCESS:agent-leak-app CPU:${CPU_FINAL}% MEM:${MEM_FINAL}% DISK:${DISK_FINAL} FIREWALL:${FW_STATUS}" | tee -a "$MONITOR_LOG"
+    echo "[$NOW] PROCESS:agent-leak-app PID:${PID} CPU:${CPU_FINAL}% MEM:${MEM_FINAL}% DISK:${DISK_FINAL} FIREWALL:${FW_STATUS}" | tee -a "$MONITOR_LOG"
 
     # 2.5 1초 대기 (Sampling Rate 제어)
     # --------------------------------------------------------------------------
