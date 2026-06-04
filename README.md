@@ -21,8 +21,6 @@
 ## 1. 아키텍처 다이어그램 (Architecture Diagram)
 > VPC, Subnet, Internet Gateway, EC2, Security Group 구성 요소와 외부에서 서비스로 들어오는 트래픽 흐름을 표현한 다이어그램입니다.
 
-![Architecture Diagram](./docs/architecture.png)
-
 ### 🌐 AWS 인프라 아키텍처 및 트래픽 흐름도
 
 ```mermaid
@@ -61,8 +59,7 @@ graph LR
 ---
 
 ## 2. 외부 접속 증빙 (방식 A 선택)
-**선택한 검증 방식**: (A) 브라우저에서 `http://<퍼블릭IP>`로 접속
-**접속 URL (또는 IP)**: `http://[여기에 퍼블릭 IP를 입력하세요]`
+**선택한 검증 방식**: (A) 브라우저에서 `http://[도메인]`으로 접속
 
 > [!NOTE]
 > 보너스 과제를 통해 HTTPS(SSL/TLS) 및 도메인을 추가 설정하였기 때문에, 일반 HTTP(80) 포트로의 접속 시도 역시 HTTPS(443) 포트로 자동 리다이렉션되도록 설계했습니다. 아래의 접속 스크린샷은 최종 HTTPS 환경의 웹 서버 웰컴 페이지 접속 화면입니다.
