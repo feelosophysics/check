@@ -24,31 +24,32 @@
 ### 🌐 AWS 인프라 아키텍처 및 트래픽 흐름도
 
 ```mermaid
-graph LR
+flowchart TD
     %% 외부 인터넷 사용자
-    Client((웹 브라우저<br/>사용자))
+    Client((👤 외부 브라우저 사용자))
 
     %% AWS 클라우드 영역
-    subgraph AWS["☁️ AWS Cloud (Seoul Region)"]
+    subgraph AWS ["☁️ AWS Cloud (Seoul Region)"]
         IGW["🚪 인터넷 게이트웨이<br/>(mission-igw)"]
 
-        subgraph VPC["🌐 VPC (mission-vpc: 10.0.0.0/16)"]
+        subgraph VPC ["🌐 VPC (mission-vpc: 10.0.0.0/16)"]
             RT["🪧 라우팅 테이블<br/>(mission-public-rt)"]
 
-            subgraph Subnet["📂 Public Subnet (10.0.1.0/24)"]
-                subgraph SG["🛡️ 보안 그룹 (mission-web-sg)<br/>HTTP(80), HTTPS(443), SSH(22) 허용"]
-                    EC2("💻 EC2 인스턴스<br/>(mission-web-server)<br/>🐳 Docker Nginx")
+            subgraph Subnet ["📂 Public Subnet (10.0.1.0/24)"]
+                subgraph SG ["🛡️ 보안 그룹 (mission-web-sg)"]
+                    EC2["💻 EC2 인스턴스 (mission-web-server)<br/>🐳 Docker Nginx (Port 80/443)"]
                 end
             end
         end
     end
 
     %% 트래픽 흐름 (화살표)
-    Client -- "1️⃣ 도메인 접속<br/>(HTTP / HTTPS)" --> IGW
-    IGW -- "2️⃣ 트래픽 유입" --> RT
-    RT -- "3️⃣ 길 안내 (목적지 확인)" --> SG
-    SG -- "4️⃣ 방화벽 규칙 통과" --> EC2
+    Client -->|1. 도메인 접속 HTTP / HTTPS| IGW
+    IGW -->|2. VPC 내부 트래픽 유입| RT
+    RT -->|3. 퍼블릭 서브넷으로 경로 안내| SG
+    SG -->|4. 포트 규칙 통과 시 최종 도달| EC2
 ```
+
 
 1. **사용자 (Client)**: 발급받은 도메인(`https://내도메인.ddns.net`)을 통해 웹 브라우저로 접속을 시도합니다.
 2. **인터넷 게이트웨이 (IGW)**: VPC가 외부 인터넷과 통신할 수 있도록 연결해 주는 '대문' 역할을 하여 트래픽을 받아들입니다.
