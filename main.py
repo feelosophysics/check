@@ -6,10 +6,19 @@ import json
 import urllib.request
 import urllib.error
 import re
+
+# .env 파일 로드 시도 (설치되어 있는 경우)
+try:
+    from dotenv import load_dotenv
+    load_dotenv()
+except ImportError:
+    pass
+
 try:
     import yaml # pip install pyyaml 이 필요할 수 있음
 except ImportError:
     yaml = None # yaml 라이브러리가 없으면 기본 설정 사용
+
 
 # =====================================================================
 # 설정 및 유틸리티 함수

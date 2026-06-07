@@ -49,7 +49,6 @@
 1. 터미널에서 사용자님이 진행하셨던 **예전 미션 폴더(리포지토리)**로 이동합니다. (`cd 예전_미션_폴더`)
 2. 코드를 수정하고, `git add` 를 합니다. (변경 사항 만들기)
 3. 이 프로그램(`main.py`와 `.ai-gitgen.yml`)을 그 예전 미션 폴더에 복사하거나, 경로를 지정하여 실행합니다.
-   `python /Users/f22losophysics1091/Desktop/codsaid/oothers/b6-2/main.py pr`
 4. 화면에 출력된 마크다운 결과물을 복사합니다.
 5. GitHub 홈페이지로 가서 평소처럼 **New Pull Request** 버튼을 누르고, 복사해둔 내용을 붙여넣기 하여 완료합니다.
 
