@@ -13,18 +13,30 @@
 ## 🚀 설치 및 환경 설정
 
 ### 1. 파이썬 라이브러리 설치
-이 도구는 기본 파이썬 라이브러리를 사용하지만, 컨벤션 설정(`.ai-gitgen.yml`)을 사용하기 위해서는 `pyyaml` 라이브러리가 필요합니다.
+이 도구는 기본 파이썬 라이브러리를 주로 사용하지만, `.env` 파일 로드 및 컨벤션 설정(`.ai-gitgen.yml`)을 지원하기 위해 `python-dotenv` 및 `pyyaml` 라이브러리가 필요합니다.
 ```bash
-pip install pyyaml
+pip install python-dotenv pyyaml
 ```
 
 ### 2. API Key 설정 (필수)
-Google Gemini AI를 사용하기 위해서는 API Key 발급이 필요합니다.
-1. [Google AI Studio](https://aistudio.google.com/) 에 접속하여 API 키를 발급받습니다.
-2. 발급받은 키를 터미널 환경변수에 등록합니다.
-   - **Mac/Linux:** `export AI_API_KEY="여러분의_발급된_API_키"`
-   - **Windows(CMD):** `set AI_API_KEY="여러분의_발급된_API_키"`
-   - **Windows(PowerShell):** `$env:AI_API_KEY="여러분의_발급된_API_키"`
+Google Gemini AI를 사용하기 위해서는 API Key 발급 및 등록이 필요합니다. **보안을 위해 `.env` 파일 방식을 강력히 권장합니다.**
+
+1. [Google AI Studio](https://aistudio.google.com/)에 접속하여 API 키를 발급받습니다.
+2. **방법 A: `.env` 파일 사용 (추천 - 보안 강화)**
+   - 프로젝트 루트 디렉토리에 있는 `.env.example` 파일을 복사하여 `.env` 파일을 생성합니다.
+     ```bash
+     cp .env.example .env
+     ```
+   - `.env` 파일을 텍스트 에디터로 열어 실제 발급받은 API 키를 입력합니다.
+     ```env
+     AI_API_KEY=여러분의_발급된_API_키
+     ```
+   - 이 프로젝트의 `.gitignore`에는 이미 `.env`가 등록되어 있으므로, 실제 키가 포함된 파일이 깃허브 등에 유출되지 않습니다.
+3. **방법 B: 터미널 세션 환경변수 직접 등록 (임시 사용)**
+   - 파일을 만들지 않고 터미널 세션 동안에만 임시로 등록해 사용하려면 아래 명령을 사용합니다.
+     - **Mac/Linux:** `export AI_API_KEY="여러분의_발급된_API_키"`
+     - **Windows(CMD):** `set AI_API_KEY="여러분의_발급된_API_키"`
+     - **Windows(PowerShell):** `$env:AI_API_KEY="여러분의_발급된_API_키"`
 
 ---
 

@@ -7,12 +7,23 @@ import urllib.request
 import urllib.error
 import re
 
-# .env 파일 로드 시도 (설치되어 있는 경우)
 try:
     from dotenv import load_dotenv
     load_dotenv()
 except ImportError:
-    pass
+    # dotenv 라이브러리가 없는 경우, .env 파일을 직접 읽어 환경 변수로 등록합니다.
+    if os.path.exists('.env'):
+        with open('.env', 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                # 주석이나 빈 줄은 건너뜁니다.
+                if not line or line.startswith('#'):
+                    continue
+                if '=' in line:
+                    key, val = line.split('=', 1)
+                    key = key.strip()
+                    val = val.strip().strip("'").strip('"')
+                    os.environ[key] = val
 
 try:
     import yaml # pip install pyyaml 이 필요할 수 있음
@@ -123,10 +134,18 @@ def call_gemini_api(prompt, model, temperature, max_tokens):
         print("## 예) export AI_API_KEY=\"여러분의_API_KEY\"")
         sys.exit(1)
         
+    # API 키 형식 검사 및 경고 (비영어 문자 포함 여부 확인)
+    if not api_key.isalnum() and not all(c in api_key for c in '-_'):
+        # 실제 API 키는 영숫자와 대시, 언더바 정도로만 구성됨. 한글 등이 포함되어 있다면 에러 가능성이 높음.
+        if any(ord(c) > 127 for c in api_key):
+            print("[ERROR] API Key에 유효하지 않은 문자(한글 또는 특수 기호)가 포함되어 있습니다.")
+            print("        Google AI Studio에서 발급받은 영문/숫자 형태의 키만 입력해 주세요.")
+            sys.exit(1)
+
     print("[INFO] AI API 요청 중...")
     
-    # Gemini API 엔드포인트 URL (REST API)
-    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent?key={api_key}"
+    # API 버전: v1beta (최신 모델 호환성을 위해 v1beta 권장)
+    url = f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
     
     # 요청 본문 (Payload) 구성
     # Gemini API가 요구하는 형식에 맞게 딕셔너리를 만듭니다.
@@ -143,9 +162,10 @@ def call_gemini_api(prompt, model, temperature, max_tokens):
     # 딕셔너리를 JSON 문자열로 변환한 후 바이트(bytes)로 인코딩합니다.
     json_data = json.dumps(data).encode('utf-8')
     
-    # HTTP 요청 헤더 설정
+    # HTTP 요청 헤더 설정 (새로운 AQ. 키 호환을 위해 x-goog-api-key 헤더로 API 키 전달)
     headers = {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'x-goog-api-key': api_key
     }
     
     # 요청(Request) 객체 생성
@@ -166,10 +186,28 @@ def call_gemini_api(prompt, model, temperature, max_tokens):
                 return "API 호출 실패 (응답 텍스트 없음)"
                 
     except urllib.error.HTTPError as e:
-        print(f"[ERROR] API HTTP 오류 발생: {e.code} {e.reason}")
+        if e.code == 404:
+            print(f"[ERROR] API 호출 경로를 찾을 수 없습니다 (404 Not Found).")
+            print(f"        원인 1: 요청하신 모델('{model}')이 단종(Deprecated)되었거나 현재 계정에서 접근할 수 없습니다.")
+            print("        원인 2: API Key가 유효하지 않거나 Google Cloud 프로젝트에 연결되지 않았습니다.")
+            print("        해결책: '--model gemini-2.5-flash' 옵션을 추가하여 최신 무료 모델로 다시 시도해 보세요.")
+        elif e.code == 429:
+            print(f"[ERROR] API 호출 제한 초과 (429 Too Many Requests).")
+            print("        원인 1: 무료 요금제의 분당 호출 제한(15 RPM) 또는 일일 제한(1500 RPD)을 초과했습니다.")
+            print("        원인 2: Google AI Studio 계정/프로젝트의 할당량(Quota) 설정이 0이거나 제한되어 있습니다.")
+            print("        해결책 1: 잠시(1~2분) 후 다시 시도해 보세요.")
+            print("        해결책 2: Google AI Studio(https://aistudio.google.com/)의 Dashboard 혹은 Google Cloud Console에서 할당량 제한을 확인해 주세요.")
+        else:
+            print(f"[ERROR] API HTTP 오류 발생: {e.code} {e.reason}")
         sys.exit(1)
     except urllib.error.URLError as e:
         print(f"[ERROR] API 네트워크 오류 발생: {e.reason}")
+        sys.exit(1)
+    except UnicodeEncodeError:
+        print("[ERROR] API Key 인코딩 중 오류가 발생했습니다. 키 값에 한글이나 잘못된 문자가 포함되어 있는지 확인해 주세요.")
+        sys.exit(1)
+    except Exception as e:
+        print(f"[ERROR] 알 수 없는 오류 발생: {e}")
         sys.exit(1)
 
 # =====================================================================
@@ -279,10 +317,11 @@ def main():
     
     # 공통 옵션 추가 (API 파라미터 등)
     # 어느 명령어를 치든 뒤에 붙일 수 있는 옵션들입니다.
-    parser.add_argument('--model', type=str, default='gemini-1.5-flash', help='사용할 AI 모델 이름 (기본값: gemini-1.5-flash)')
-    parser.add_argument('--temperature', type=float, default=0.7, help='AI 응답의 창의성 정도 (0.0 ~ 1.0, 기본값: 0.7)')
-    parser.add_argument('--max-tokens', type=int, default=500, help='생성할 최대 토큰 수 (기본값: 500)')
-    parser.add_argument('--safe-mode', action='store_true', help='안전 모드 활성화 (민감 정보 마스킹 및 전송량 제한)')
+    # 미션 요구사항에 명시된 단일 대시 옵션(-model, -temperature, -max-tokens, -safe-mode)도 지원하도록 설정합니다.
+    parser.add_argument('--model', '-model', type=str, default='gemini-2.5-flash', help='사용할 AI 모델 이름 (기본값: gemini-2.5-flash)')
+    parser.add_argument('--temperature', '-temperature', type=float, default=0.7, help='AI 응답의 창의성 정도 (0.0 ~ 1.0, 기본값: 0.7)')
+    parser.add_argument('--max-tokens', '-max-tokens', type=int, default=500, help='생성할 최대 토큰 수 (기본값: 500)')
+    parser.add_argument('--safe-mode', '-safe-mode', action='store_true', help='안전 모드 활성화 (민감 정보 마스킹 및 전송량 제한)')
     
     # 사용자가 터미널에 입력한 값을 파싱(해석)합니다.
     args = parser.parse_args()
