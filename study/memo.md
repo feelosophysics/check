@@ -1,4 +1,8 @@
 
+.venv/bin/pip install pyyaml python-dotenv
+.venv/bin/python main.py commit
+
+
 ## 궁금
 
 - 레포 새로, 완성본 말고, 추적용 유틸 따로?
@@ -68,3 +72,53 @@
 
 - **안전 모드 (Safe Mode)**
   정규표현식(`re` 모듈)을 썼습니다. `re.sub(패턴, 바꿀글자, 원본텍스트)` 함수를 이용해서 `[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}` 처럼 생긴 이메일을 찾아내고 `***@***.***` 로 바꿔치기(마스킹)해서 구글 서버로 정보를 보내기 전에 안전하게 차단했습니다.
+
+---
+
+Ran command: `git push`
+Ran command: `git status`
+Ran command: `git add .`
+Ran command: `git commit -m 'del'`
+Ran command: `git push`
+Viewed venv_guide.md:1-75
+Listed directory check
+
+원인을 찾았습니다! 
+
+터미널에서 `pip` 명령어가 시스템 파이썬 경로인 `$PYTHON_HOME/bin/pip3.12`로 **별칭(alias) 설정**되어 있기 때문에 발생한 문제입니다.
+
+### 🔍 원인 분석
+가상환경(`source .venv/bin/activate`)을 활성화하면 터미널의 `PATH` 환경 변수가 가상환경 내부를 가리키도록 변경됩니다. 하지만 **셸 별칭(alias)은 `PATH`보다 우선순위가 높습니다.** 
+따라서 `(.venv)` 상태임에도 불구하고 `pip`를 입력했을 때 가상환경 내부의 `pip` 대신 시스템 전역 `pip`가 강제로 실행되었고, 이로 인해 `externally-managed-environment` 에러가 발생한 것입니다.
+
+---
+
+### 🛠️ 해결 방법 (아래 방법 중 하나를 선택해서 실행해 보세요)
+
+#### 방법 1. 가상환경 내부의 pip 직접 실행하기 (가장 확실하고 추천하는 방법)
+별칭(alias)을 무시하고 가상환경 폴더 내부에 있는 `pip` 실행 파일을 상대 경로로 직접 지정하여 설치합니다.
+```bash
+.venv/bin/pip install pyyaml python-dotenv
+```
+
+#### 방법 2. 현재 터미널 세션에서 pip 별칭 일시적으로 해제하기
+현재 터미널 창에서만 `pip` 별칭 설정을 해제한 후 설치를 진행합니다.
+```bash
+unalias pip
+pip install pyyaml python-dotenv
+```
+*(이 방법은 현재 열려 있는 터미널 창에서만 유효하며, 새 터미널 창을 열면 다시 별칭이 적용됩니다.)*
+
+#### 방법 3. python 명령어로 실행하기 (python 별칭이 없을 때 가능)
+만약 `python` 명령어에는 별칭이 걸려있지 않다면, 아래와 같이 모듈 호출 방식으로 설치할 수도 있습니다.
+```bash
+python -m pip install pyyaml python-dotenv
+```
+
+---
+
+### 작업 완료 후 실행할 때도 주의할 점
+프로그램을 실행하실 때도 `python main.py commit`을 입력했을 때 동일하게 시스템 파이썬이 실행된다면, 가상환경 내부의 파이썬을 직접 지정하여 실행해 주세요.
+```bash
+.venv/bin/python main.py commit
+```
