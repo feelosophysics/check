@@ -1,226 +1,100 @@
-# 📊 Codyssey B2-1 동료학습(Peer Learning) 비교 분석 및 스터디 전략 레포트
+# 🚀 Mini Git (B3-2) 초상세 해설 & 피어리뷰 완벽 가이드
 
-> **미션명**: Codyssey AI/SW 기초 B2-1 - 나만의 용돈 기입장 콘솔 프로그램 만들기  
-> **비교 대상**: 🧑‍💻 [yejoo0310/codyssey-b2-1](https://github.com/yejoo0310/codyssey-b2-1) vs 🚀 [feelosophysics (glad/budget_app)](https://github.com/feelosophysics)  
-> **작성 목적**: 학습 동료와 코드 미팅 시 상호 설계 철학 교환, 강점 벤치마킹, 코드 리뷰(버그 픽스) 및 비즈니스/CLI 계층 공동 설계를 위한 실전 스터디 가이드
+> **배포 페이지**: [https://feelosophysics.github.io/check/](https://feelosophysics.github.io/check/)  
+> **미션 명**: 파일이 언제 어떻게 바뀌었는지 기록하는 작은 프로그램 만들기 (Codyssey B3-2 Mini Git)  
+> **목적**: 10분 만에 Git의 핵심 구조를 완벽히 이해하고, 동료와의 피어리뷰에서 깊이 있는 기술적 티키타카를 나눌 수 있도록 구성한 보고서  
+> **이전 레포트 백업**: [B2-1 용돈기입장 피어리뷰 레포트 (index_b2_1_backup.html)](index_b2_1_backup.html)
 
 ---
 
-## 📌 1. 총평 및 현황 요약 (Executive Summary)
+## ⚡ 1. [10분 속성] Mini Git 5대 핵심 개념 한눈에 보기
 
-두 사람의 코드베이스는 **접근 방식과 강점의 결이 완전히 달라 동료학습 시 상호 보완적인 시너지가 극대화될 수 있는 최상의 조합**입니다.
+Git은 단순한 파일 백업 도구가 아니라 **그래프 이론(Graph Theory)**과 **해시 알고리즘**의 결정체입니다.
 
 ```mermaid
-flowchart LR
-    subgraph Friend ["🧑‍💻 친구 (yejoo0310)"]
-        F_TDD["🧪 철저한 TDD 기반 개발"]
-        F_OOP["🏛️ 엄격한 OOP & 단일 책임 분리"]
-        F_Type["🔒 slots / frozen / 커스텀 예외 계층"]
-        F_Status["⏳ Service / CLI 구현 예정 단계"]
+graph TD
+    subgraph "Git Commit DAG (방향성 비순환 그래프)"
+        C1["a1b2c3 (Root)<br>parents: []"]
+        C2["d4e5f6 (feature)<br>parents: [a1b2c3]"]
+        C3["g7h8i9 (main)<br>parents: [a1b2c3]"]
+        C4["x1y2z3 (Merge Commit)<br>parents: [g7h8i9, d4e5f6]"]
+
+        C2 -->|references| C1
+        C3 -->|references| C1
+        C4 -->|references| C3
+        C4 -->|references| C2
     end
-
-    subgraph User ["🚀 사용자 (feelosophysics)"]
-        U_Full["🎯 B2-1 전 기능 100% 완주"]
-        U_Bonus["⭐ 4대 보너스 과제 완벽 구현"]
-        U_UI["💬 CLI 대화형 UI & 한글 전각 폭 정렬"]
-        U_AOP["🛡️ AOP 데코레이터 & 감사 로깅"]
-    end
-
-    Friend -.->|TDD/객체지향 설계 노하우 공유| User
-    User -.->|Service/CLI/보너스 구현 가이드| Friend
 ```
 
-| 비교 항목 | 🧑‍💻 친구 (`yejoo0310`) | 🚀 나 (`feelosophysics`) | 스터디 & 토론 포인트 |
-| :--- | :--- | :--- | :--- |
-| **개발 스타일** | **Bottom-Up (하위 레이어 집중형)** | **Full-Stack Top-to-Bottom (완성형)** | TDD 접근법 vs 전체 아키텍처 관점 |
-| **구현 진척도** | Models, Validators, Repositories, Unit Tests 완성<br>*(Service, CLI, Decorators 구현 예정)* | 미션 1~10번 전 기능 + 보너스 1~4번 전 항목 완성 | 비즈니스 로직 및 CLI 인터페이스 공동 설계 |
-| **도메인 모델** | `slots=True`, `frozen=True`, `Date` 객체 변환, 엄격한 `__post_init__` 정규화 | 실용적 `dataclass`, 날짜 `str` 유지, `RecurringRule`(반복 규칙) 지원 | 객체 불변성과 직렬화/역직렬화 비용 트레이드오프 |
-| **예외 설계** | `errors.py` 기반 5대 계층형 커스텀 예외 (`BudgetAppError`) + `hint` 주입 | 표준 예외 + `decorators.py` 기반 통합 예외 안전 처리 | AOP 데코레이터와 도메인 커스텀 예외 결합 |
-| **저장소 I/O** | `NamedTemporaryFile` + `fsync` + 제너레이터 스트리밍 교체 | `BaseRepository` + `.tmp` + `os.replace` 원자적 쓰기 | OS 커널 레벨 디스크 버퍼 플러시(`fsync`)의 중요성 |
-| **테스트 코드** | `unittest` + `TemporaryDirectory` 격리 단위 테스트 완비 | 통합 E2E 테스트 및 대화형 CLI 루프 검증 | TDD 단위 테스트 스위트 벤치마킹 |
-| **문서화** | 5줄 뼈대 상태 | 1,000줄 이상의 상세 README (아키텍처 다이어그램 포함) | 프로젝트 문서화 및 설계 의도 전달법 |
+| 핵심 영역 | 선택한 자료구조 / 알고리즘 | 시간복잡도 | 핵심 이유 및 특징 |
+|:---|:---|:---:|:---|
+| **커밋 그래프** | **DAG (자식 → 부모 간선)** | $O(1)$ 조회 | 과거의 커밋만 부모로 참조 가능하므로 **사이클(Cycle)이 원천적으로 불가능** |
+| **해시 식별자** | **SHA-1 (앞 6자리 Hex + 충돌 방지 카운터)** | $O(1)$ | 내용 기반 무결성 검증, 6자리 축약 시 충돌 시 `_1` 접미사로 100% 유일성 보장 |
+| **로그 출력 (LOG)** | **Kahn's Algorithm (위상 정렬)** | $O(V + E)$ | 부모가 자식보다 먼저 출력. **반복문 큐 기반으로 파이썬 재귀 한계 극복 및 사이클 검증** |
+| **최단 경로 (PATH)** | **BFS (너비 우선 탐색)** | $O(V + E)$ | **무방향(Undirected) 간선 처리**로 서로 다른 브랜치 간 공통 조상을 경유하는 최단 경로 탐색 |
+| **조상 탐색 (ANCESTORS)** | **DFS (깊이 우선 탐색)** | $O(V + E)$ | 머지 커밋(부모 2개) 체인을 끝까지 거슬러 올라가 모든 역사적 조상 완전 수집 |
+| **빠른 검색 (SEARCH)** | **역색인 (Inverted Index, `dict` + `set`)** | $O(1)$ 조회 | 순회 검색($O(N \times M)$) 대비 메모리를 투자하여 즉각적 키워드/작성자 조회 달성 |
+| **커스텀 정렬** | **Merge Sort (머지 정렬)** | $O(N \log N)$ | `sorted()` 금지 제약 대응. **안정 정렬(Stable Sort)**로 동률 시 기존 커밋 순서 보존 |
+| **파일 비교 (DIFF)** | **LCS (동적 프로그래밍 기반)** | $O(M \times N)$ | 두 텍스트의 최장 공통 부분수열을 찾아 추가(`+`), 삭제(`-`), 유지(` `) 줄 도출 |
 
 ---
 
-## 🔍 2. 모듈별 심층 비교 분석 (Deep Code Comparison)
+## 🥊 2. 우리 구현체(`feelosophysics/check`) vs 동료 일반 구현체의 차이점
 
-### 2.1 도메인 모델 및 유효성 검증 계층 (`models.py`, `validators.py`, `types.py`)
-
-#### 🧑‍💻 친구의 설계 (`yejoo0310`)
-* **엄격한 불변성과 단일 책임 원칙 (SRP)**:
-  * `@dataclass(slots=True)`를 적용하여 메모리 오버헤드를 최소화하고 런타임 동적 속성 할당을 원천 차단했습니다.
-  * `Category`에 `frozen=True`를 부여하여 도메인 불변 객체(Value Object)로 안전하게 다룹니다.
-  * `types.py`(`TransactionType = Literal["income", "expense"]`)와 `validators.py`를 독립 모듈로 분리하여 모델 클래스가 순수 데이터 구조에만 집중하도록 분리했습니다.
-  * 날짜 데이터를 단순 문자열이 아닌 Python 내장 `datetime.date` 객체로 엄격히 관리합니다.
-
-#### 🚀 나의 설계 (`feelosophysics`)
-* **실용성과 도메인 확장성**:
-  * 날짜를 `YYYY-MM-DD` 문자열로 유지하여 JSONL 직렬화/역직렬화 오버헤드를 줄이고 CLI 입력/출력 간의 변환 비용을 최소화했습니다.
-  * 보너스 과제인 매달 고정 지출/수입 규칙(`RecurringRule`) 모델을 선제적으로 정의하여 자동화 확장이 가능합니다.
+| 비교 포인트 | 일반적인 동료의 구현 방식 | 우리 레포(`feelosophysics/check`)의 구현 방식 | 피어리뷰 토론 포인트 |
+|:---|:---|:---|:---|
+| **1. 해시 생성** | 단순 `id_counter += 1` 또는 `uuid` | **SHA-1 내용 기반 해시 + 충돌 방지 엔진** | "실제 Git처럼 커밋 내용(메시지, 작성자, 타임스탬프, 부모)을 해싱하셨나요?" |
+| **2. LOG 정렬** | 재귀 DFS 방문 순서 역순 또는 타임스탬프 정렬 | **Kahn's Algorithm (진입차수 기반 위상 정렬)** | "머지 커밋이 얽힌 복잡한 DAG에서 부모가 먼저 출력됨을 보장하는 위상 정렬을 어떻게 구현하셨나요?" |
+| **3. PATH 간선** | 부모 방향만 탐색 (다른 브랜치 간 경로 탐색 실패 위험) | **양방향 인접 리스트 구축 + BFS 최단 경로 + 사전순 동점 처리** | "다른 브랜치에 있는 두 커밋 간 최단 경로를 찾기 위해 간선을 무방향으로 처리하셨나요?" |
+| **4. 역색인 자료구조** | 리스트 기반 매핑 `dict[str, list]` | **`set` 기반 역색인 (`dict[str, set]`)** | "키워드/작성자 역색인에 set을 써서 중복 등록 방지와 $O(1)$ 멤버십 체크를 어떻게 챙기셨나요?" |
+| **5. 정렬 알고리즘** | 퀵 정렬만 구현하거나 버블/선택 정렬 | **Merge Sort(안정 정렬) + Quick Sort(벤치마크) 이원화** | "동률인 커밋들의 순서 보존을 위해 안정 정렬(Stable Sort) 특성을 고려하셨나요?" |
+| **6. 책임 분리** | `main.py`에 모든 로직 집중 (단일 파일) | **모듈별 엄격 분리 (`models`, `graph`, `sorting`, `index`, `diff`)** | "REPL 인터페이스와 비즈니스/알고리즘 로직을 어떤 기준으로 분리하셨나요?" |
 
 ---
 
-### 2.2 예외 처리 아키텍처 (`errors.py` vs `decorators.py`)
+## 💬 3. 피어리뷰 실전 티키타카 대화 스크립트 (5대 킬러 질문)
 
-#### 🧑‍💻 친구의 계층형 커스텀 예외 구조
-```python
-class BudgetAppError(Exception):
-    """budget app 프로그램에서 예상 가능한 오류의 최상위 예외"""
-    def __init__(self, message: str, *, hint: str | None = None) -> None:
-        super().__init__(message)
-        self.message = message
-        self.hint = hint
+### 🗣️ 질문 1. "LOG 명령어 구현할 때 부모가 먼저 나오게 하는 건 어떻게 푸셨어요?"
+- **동료의 예상 답변**: "타임스탬프로 정렬하거나 DFS로 부모 먼저 출력되게 재귀를 돌렸어요."
+- **나의 인사이트 공유**:  
+  > *"타임스탬프는 시스템 시간이 어긋나거나 리베이스할 때 역전될 수 있어서, 저는 순수 DAG 위상 정렬인 **Kahn's Algorithm**을 사용했어요. 진입차수(In-degree)를 자식이 없는 말단 커밋부터 큐로 줄여나가며 역순 정렬하니, 재귀 스택 오버플로우 걱정도 없고 그래프에 혹시 모를 사이클이 생겨도 즉시 감지할 수 있더라고요!"*
 
-class DataAccessError(BudgetAppError): ...
-class DataFormatError(BudgetAppError): ...
-class NotFoundError(BudgetAppError): ...
-class DuplicateError(BudgetAppError): ...
-class CategoryInUseError(BudgetAppError): ...
-```
-* 에러 메시지뿐만 아니라 사용자가 취해야 할 조치인 `hint`를 객체 속성으로 함께 주입할 수 있도록 훌륭하게 설계되어 있습니다.
+### 🗣️ 질문 2. "PATH 명령어에서 두 브랜치 사이의 최단 경로는 어떻게 찾으셨어요?"
+- **동료의 예상 답변**: "BFS로 부모를 타고 올라가면서 찾았어요."
+- **나의 인사이트 공유**:  
+  > *"부모 방향(단방향)으로만 탐색하면 `feature` 브랜치 커밋과 `main` 브랜치 커밋처럼 공통 조상을 거쳐 다시 자식으로 내려가야 하는 경로를 못 찾더라고요. 그래서 저는 인접 리스트를 만들 때 **무방향(Undirected) 간선**으로 양방향을 모두 연결한 뒤 BFS를 돌리고, 최단 경로가 여러 개일 때를 대비해 **사전순(Lexicographical order) 정렬**을 걸어줬어요."*
 
-#### 🚀 나의 관점 지향(AOP) 데코레이터 구조
-* `@handle_errors_gracefully` 데코레이터를 통해 비즈니스 로직과 UI 컨트롤러 어디서든 발생하는 예외를 한곳에서 가로채 친절한 한글 박스 힌트와 비정상 종료 코드(`sys.exit(1)`)를 출력합니다.
-* **💡 토론 시너지**: 친구의 `BudgetAppError` 계층(원인 + `hint`)을 데코레이터에서 포획하여 콘솔에 렌더링하면 가장 이상적인 에러 핸들링 파이프라인이 완성됩니다.
+### 🗣️ 질문 3. "파이썬 표준 `sorted()` 금지 제약은 어떤 정렬로 뚫으셨어요?"
+- **동료의 예상 답변**: "퀵 정렬이나 버블 정렬을 만들어서 썼어요."
+- **나의 인사이트 공유**:  
+  > *"저는 **머지 정렬(Merge Sort)**을 기본으로 선택했어요. 작성자(`author`)나 날짜(`date`)가 동일한 커밋들이 있을 때, 원래 생성된 순서가 뒤집히지 않아야 하는 **'안정 정렬(Stable Sort)'**이 필수적이라고 생각했거든요. 퀵 정렬은 평균 속도는 빠르지만 피벗 선택에 따라 $O(N^2)$이 될 수 있고 불안정 정렬이라 벤치마크 비교용으로 따로 구현했어요."*
 
----
+### 🗣️ 질문 4. "SEARCH 명령어의 역색인(Inverted Index)은 언제 갱신되게 하셨나요?"
+- **동료의 예상 답변**: "검색할 때마다 인덱스를 만들거나, 커밋할 때마다 딕셔너리에 넣었어요."
+- **나의 인사이트 공유**:  
+  > *"검색 시 매번 만들면 순회 검색과 다를 바 없어서, 저는 **`COMMIT`이 일어나는 순간** 메시지를 소문자로 토큰화해서 `keyword_index`와 `author_index`의 `set`에 $O(1)$로 즉시 추가했어요. 쓰기(Write) 시점에 약간의 비용과 메모리를 쓰고, 읽기(Read) 성능을 극대화하는 전형적인 **공간-시간 트레이드오프(Space-Time Tradeoff)**를 의도했습니다."*
 
-### 2.3 저장소 계층 및 원자적 쓰기 (`repositories.py` vs `repository.py`)
-
-#### 🧑‍💻 친구의 저장소 I/O 메커니즘
-```python
-with tempfile.NamedTemporaryFile(..., delete=False) as temp_file:
-    temp_path = Path(temp_file.name)
-    for data in records:
-        temp_file.write(json_line + "\n")
-    temp_file.flush()
-    os.fsync(temp_file.fileno())  # OS 디스크 버퍼 물리 플러시!
-os.replace(temp_path, self.file_path)
-```
-* **장점**: `os.fsync`를 호출하여 OS 커널 레벨 디스크 버퍼까지 완전히 디스크에 쓰이도록 보장하는 정석적인 POSIX 원자적 쓰기를 구현했습니다.
-* **스트리밍 쓰기**: `replacement_records()` 제너레이터를 `_rewrite_dicts()`에 넘겨 메모리 스트리밍 방식으로 파일 교체를 처리합니다.
-
-#### 🚀 나의 저장소 I/O 메커니즘
-* `BaseRepository`를 기반으로 `_atomic_write_lines`를 공통화하고 `.tmp` 파일 생성 후 `os.replace`로 교체합니다.
-* `find_all_stream()` 제너레이터로 대용량 거래를 한 줄씩 스트리밍 로드합니다.
-* `update`, `delete` 시 성공 여부를 `bool` (`True`/`False`)로 명확하게 반환하여 상위 Service 계층에서 직관적인 분기 처리가 가능합니다.
+### 🗣️ 질문 5. "해시 충돌(Hash Collision)은 어떻게 대비하셨나요?"
+- **동료의 예상 답변**: "카운터나 UUID를 쓰거나, SHA-1 앞 6자리를 그냥 썼어요."
+- **나의 인사이트 공유**:  
+  > *"SHA-1 앞 6자리(16진수 6자리 = 약 1,677만 개)는 비둘기집 원리에 의해 프로젝트가 커지면 충돌할 수 있잖아요? 그래서 저는 해시맵에 이미 존재하는 키면 `_1`, `_2`처럼 **충돌 해결 접미사 카운터**를 붙이도록 설계해서 세션 내 유일성을 100% 보장하도록 방어했습니다."*
 
 ---
 
-### 2.4 단위 테스트 및 품질 관리 (`tests/`)
+## ⚖️ 4. 심화 트레이드오프 & 확장 질문 (평가 대비)
 
-* **친구의 독보적 강점**:
-  * `unittest.TestCase`를 기반으로 `TemporaryDirectory()`를 활용한 격리 테스트 환경 구축 (`test_repositories.py`, `check_models.py`).
-  * 잘못된 JSONL 포맷(`DataFormatError`), 빈 줄 무시, 파일 순서 보장, 임시 파일 쓰기 실패 시 원본 보존 여부까지 단위 테스트로 촘촘히 검증하는 모범적인 TDD 스타일을 보여줍니다.
+### Q1. 커밋 수가 100만 개로 10배~100배 증가한다면 어디가 가장 먼저 병목이 될까?
+1. **메모리(RAM) 병목**:
+   - 모든 커밋 객체와 역색인 `set`이 메모리에 상주하므로 메모리 사용량이 급증합니다.
+   - **해결책**: 디스크 기반 B-Tree/LSM-Tree 인덱스(SQLite나 RocksDB) 도입, 필요할 때만 노드를 로드하는 Lazy Loading.
+2. **전체 위상 정렬(LOG) 비용**:
+   - 100만 개 커밋 전체를 매번 위상 정렬($O(V+E)$)하면 지연이 발생합니다.
+   - **해결책**: 페이지네이션(Pagination, 예: `git log -n 20`) 및 부모 링크를 따라가는 온디맨드 이터레이터 패턴.
 
----
+### Q2. 만약 PATH 간선을 "부모 방향만 허용(단방향)"으로 바꾸면 어떻게 될까?
+- **결과 변화**: 오직 직계 조상-자손 관계(`ancestor ↔ descendant`) 사이의 경로만 탐색 가능해지며, 서로 갈라진 병렬 브랜치 간의 경로는 `No path`가 됩니다.
+- **구현 수정**: 인접 리스트 생성 시 `parent → child` 역방향 간선 등록 로직을 제거하고 `child → parent` 단방향만 탐색하도록 수정.
 
-## 🎁 3. 친구를 위한 코드 리뷰 선물 (버그 & 린트 개선 포인트)
-
-동료학습 시 친구에게 친절하게 공유해줄 수 있는 실제 코드 개선 포인트들입니다:
-
-### 1) `repositories.py` 키워드 인자 오타 (Line 33)
-```python
-# 현재 코드
-raise DataAccessError(
-    f"저장 파일을 준비하지 못했습니다: {self.file_path}",
-    hind="저장 경로와 파일 접근 권한을 확인해 주세요."  # 'hind' 오타 발생!
-)
-
-# 수정 제안
-raise DataAccessError(
-    f"저장 파일을 준비하지 못했습니다: {self.file_path}",
-    hint="저장 경로와 파일 접근 권한을 확인해 주세요."
-)
-```
-
-### 2) `repositories.py` 임시 파일 정리 조건 오류 (Line 136)
-```python
-# 현재 코드
-finally:
-    if temp_path is None:  # temp_path가 생성되었을 때(not None) 삭제해야 하는데 조건이 반대임!
-        try:
-            temp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-
-# 수정 제안
-finally:
-    if temp_path is not None and temp_path.exists():
-        try:
-            temp_path.unlink(missing_ok=True)
-        except OSError:
-            pass
-```
-
-### 3) `repositories.py` 메서드 시그니처 및 반환값 보완
-* `TransactionRepository.update()`: 반환 타입 힌트가 `-> bool`로 되어 있으나 실제 `return` 문이 없어 `None`이 반환됩니다.
-* `TransactionRepository.exists()`: 파라미터명 오타 `transactioin_id` -> `transaction_id`.
-* `TransactionRepository.delete(self, transaction_id)`: `transaction_id: str` 매개변수 타입 힌트 누락.
-
----
-
-## 🗺️ 4. 동료학습(Peer Learning) 4단계 실전 스터디 아젠다
-
-```mermaid
-journey
-    title B2-1 동료학습 세션 로드맵
-    section 1. 아이스브레이킹 & 코드리뷰
-      서로의 설계 철학 공유: 5: User, Friend
-      친구의 TDD 테스트 칭찬 & 버그 픽스 페어프로그래밍: 5: User, Friend
-    section 2. 아키텍처 토론
-      Date 객체 vs str 트레이드오프: 4: User, Friend
-      os.fsync와 원자적 쓰기 메커니즘: 5: User, Friend
-    section 3. 서비스 & CLI 공동 설계
-      Service 계층 책임과 정렬 로직: 5: User, Friend
-      대화형 CLI 루프와 데코레이터 연결: 5: User, Friend
-    section 4. 보너스 기능 노하우 공유
-      한글 전각 폭 표 정렬 (unicodedata): 5: User, Friend
-      백업 압축 & 반복 거래 규칙: 4: User, Friend
-```
-
-### ☕ 세션 1: 아이스브레이킹 & 저장소/테스트 코드 리뷰 (약 20분)
-* **주제**: "친구의 TDD와 단위 테스트 구조 배워보기 + 버그 픽스 페어프로그래밍"
-* **대화 가이드**:
-  > *"네가 작성한 `TemporaryRepositoryTestCase`랑 `slots=True` 모델 검증 구조 보니까 진짜 객체지향적이고 테스트가 탄탄해서 감탄했어! 특히 `fsync`까지 챙긴 원자적 쓰기 로직이 인상 깊더라. 저장소 쪽 보다가 `hind` 오타랑 `temp_path` 정리 부분 사소한 거 몇 개 찾았는데 같이 볼래?"*
-
----
-
-### 🧠 세션 2: 데이터 모델 & 아키텍처 트레이드오프 토론 (약 25분)
-1. **날짜 타입 결정**:
-   * `datetime.date` 객체로 들고 있을 때의 장점(월 계산, 날짜 비교 용이) vs `str`로 유지할 때의 장점(직렬화 단순화, CLI 입력과의 일치).
-2. **원자적 쓰기 & `os.fsync`의 필요성**:
-   * 단순히 `open('w')`로 덮어쓸 때 정전이 나면 파일이 0바이트로 깨지는 문제.
-   * `tempfile` 생성 -> `fsync` -> `os.replace` 파이프라인의 OS 커널 동작 원리.
-3. **제너레이터 스트리밍 vs 정렬의 모순**:
-   * 최신순 정렬을 하려면 결국 전체 데이터를 메모리에 올려야 하는가? 대용량 파일에서 스트리밍을 유지하며 정렬하는 최선의 전략은?
-
----
-
-### 🛠️ 세션 3: Service 계층 및 대화형 CLI 설계 페어링 (약 35분)
-* **주제**: "친구가 구현할 `services.py`, `cli.py`, `decorators.py`의 뼈대 함께 잡기"
-* **내가 전수해줄 수 있는 핵심 노하우**:
-  * **대화형 입력 헬퍼 (`prompt_interactive`)**: 잘못 입력했을 때 프로그램이 바로 꺼지지 않고 친절한 힌트와 함께 재입력을 유도하는 루프 패턴.
-  * **데코레이터 활용법**: `@handle_errors_gracefully`가 친구의 `errors.py` 커스텀 예외들을 받아서 예쁜 한글 박스로 출력해주는 구조.
-  * **거래 ID 자동 채번 알고리즘**: `TX-000001` 일련번호 부여 로직.
-
----
-
-### 🌟 세션 4: 보너스 과제 노하우 공유 (약 20분)
-1. **터미널 한글 정렬 문제 해결 (`unicodedata.east_asian_width`)**:
-   * 한글(전각 2칸)과 영문(반각 1칸)의 터미널 렌더링 폭 차이를 해결하는 알고리즘 공유.
-2. **데이터 안전 백업 (`zipfile`)**:
-   * `backups/` 폴더에 타임스탬프 기반 압축 파일 자동 생성.
-3. **반복 거래 규칙 (`RecurringRule`)**:
-   * 매달 특정일에 고정 지출/수입을 자동 생성해주는 스케줄링 로직.
-
----
-
-## 🎯 5. 핵심 토론 질문 카드 (질문 리스트)
-
-동료학습 중 자연스럽게 질문을 던질 때 활용하세요:
-
-1. *"카테고리 모델에 `frozen=True`를 적용했던데, 이렇게 불변 객체로 설계했을 때 비즈니스 로직에서 어떤 이점이 있어?"*
-2. *"`_rewrite_dicts`에 제너레이터를 넘겨서 한 줄씩 직렬화하면서 쓰는 방식이 인상적인데, 중간에 제너레이터에서 예외가 발생하면 임시 파일은 어떻게 처리되는 구조야?"*
-3. *"`errors.py`에 `hint` 필드를 따로 둔 설계가 너무 좋던데, CLI나 데코레이터에서 이 힌트를 사용자에게 어떻게 보여주면 제일 깔끔할까?"*
-4. *"거래 목록을 `list --limit N`으로 최신순 조회할 때, 파일이 순차 기록되어 있으면 역순 정렬과 제너레이터 스트리밍을 어떻게 조화시키는 게 좋을까?"*
+### Q3. `LOG --sort-by=author`에서 "부모-자식 선후 관계"까지 동시에 유지해야 한다면?
+- **해결 전략**: 단순 작성자 이름 정렬 대신, **위상 정렬의 큐(Kahn's Queue)를 작성자 이름 기준 우선순위 큐(Priority Queue / Min-Heap)**로 교체합니다.
+- 이렇게 하면 **"부모가 자식보다 먼저 나온다"는 DAG 제약을 100% 만족하면서도, 선택 가능한 후보군 중에서 항상 작성자 이름이 사전순으로 앞서는 커밋이 먼저 선택**됩니다.
