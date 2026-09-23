@@ -1,116 +1,298 @@
-# 🚀 Mini Git (B3-2) 피어 학습 및 아키텍처 비교 심층 보고서
+# 🔧 Mini Git — CLI 기반 버전 관리 시스템
 
-> **배포 페이지**: [https://feelosophysics.github.io/check/](https://feelosophysics.github.io/check/)  
-> **미션 명**: 파일이 언제 어떻게 바뀌었는지 기록하는 작은 프로그램 만들기 (Codyssey B3-2 Mini Git)  
-> **비교 대상**: `glad` 구현체 vs `codyssey-b3-2` 구현체  
-> **목적**: 두 가지 서로 다른 설계 철학과 알고리즘 구현 방식을 1:1로 비교 분석하여, 피어 리뷰 세션에서 생산적이고 깊이 있는 기술적 토론을 나누기 위함.
+Git의 핵심 자료구조(DAG, 해시맵, 역색인)와 알고리즘(BFS, DFS, 위상 정렬, 정렬)을
+직접 구현하여 만든 교육용 Mini Git CLI 프로그램입니다.
 
----
+## 📋 목차
 
-## ⚡ 1. [제1원리] Mini Git은 왜 만들어졌는가?
+- [실행 방법](#-실행-방법)
+- [명령어 목록](#-명령어-목록)
+- [아키텍처 및 설계 원칙](#-아키텍처-및-설계-원칙)
+- [프로젝트 구조](#-프로젝트-구조)
+- [구현된 알고리즘](#-구현된-알고리즘)
+- [보너스 과제](#-보너스-과제)
+- [사용 예시](#-사용-예시)
 
-### ① 모든 비극의 시작: 파일 덮어쓰기와 최종_진짜최종.py
-소프트웨어 개발에서 협업 시 발생하는 가장 본질적인 문제는 **"동일한 파일을 여러 작업자가 동시에 수정할 때 누구의 변경사항이 덮어씌워져 유실되는가"**입니다. 단순히 파일을 복사해 두는 방식(`v1`, `v2`, `진짜최종`)은 변경 이력의 인과관계를 추적하지 못합니다.
+## 🚀 실행 방법
 
-### ② Git의 본질: 스냅샷에 부모 꼬리표 달기 (DAG)
-Git은 변경 순간마다 커밋 노드를 생성하고, **'직전 작업(부모 커밋)'의 해시를 포인터로 매다는 연결 구조**를 취합니다.
-- 부모가 0개인 노드: 최초의 커밋 (Root)
-- 부모가 1개인 노드: 일반적인 순차 커밋
-- 부모가 동일한 두 자식 노드: 브랜치 갈림길 (Branching, Y자 분기)
-- 부모가 2개 이상인 노드: 병합 커밋 (Merge Commit, 다이아몬드 합류)
+```bash
+python3 -m minigit
+```
 
-이 구조는 미래의 커밋이 과거를 가리킬 뿐 과거가 미래를 가리킬 수 없으므로, **물리적으로 사이클(순환)이 불가능한 방향성 비순환 그래프(DAG, Directed Acyclic Graph)**를 이룹니다.
+> **요구 환경**: Python 3.10 이상  
+> **외부 라이브러리**: 없음 (표준 라이브러리만 사용)
 
-### ③ 코디세이 미션의 진짜 출제 의도
-실제 Git의 방대한 파일 I/O와 네트워크 통신 껍데기를 걷어내고, **컴퓨터 과학의 4대 핵심 알고리즘(그래프 모델링, 위상 정렬, BFS 최단 경로, 역색인 검색, 수제 분할정복 정렬)**이 하나의 소프트웨어 안에서 어떻게 유기적으로 맞물리는지 체득시키는 것이 이 미션의 본질입니다.
+## 📝 명령어 목록
 
----
+### 기본 명령어
 
-## 🏛️ 2. 두 구현체(`glad` vs `codyssey-b3-2`) 아키텍처 1:1 비교
+| 명령어 | 설명 | 사용법 |
+|--------|------|--------|
+| `INIT` | 저장소 초기화 | `INIT <user_name>` |
+| `COMMIT` | 새 커밋 생성 | `COMMIT <message>` |
+| `BRANCH` | 새 브랜치 생성 | `BRANCH <branch_name>` |
+| `SWITCH` | 브랜치 전환 | `SWITCH <branch_name>` |
+| `LOG` | 커밋 로그 출력 (위상 정렬) | `LOG` |
+| `LOG --sort-by` | 정렬 기준 지정 | `LOG --sort-by=date\|author` |
+| `PATH` | 두 커밋 간 최단 경로 | `PATH <hash1> <hash2>` |
+| `ANCESTORS` | 특정 커밋의 모든 조상 | `ANCESTORS <commit_hash>` |
+| `SEARCH` | 키워드로 커밋 검색 | `SEARCH <keyword>` |
+| `SEARCH --author` | 작성자로 커밋 검색 | `SEARCH --author=<name>` |
+| `STATUS` | 저장소 상태 확인 | `STATUS` |
+| `HELP` | 도움말 출력 | `HELP` |
+| `EXIT` / `QUIT` | 프로그램 종료 | `EXIT` |
 
-두 저장소는 동일한 미션 요구사항을 해결했으나, **설계 책임 분리와 최적화 접근 방식**에서 흥미로운 차이점을 보입니다.
+### 보너스 명령어
+
+| 명령어 | 설명 | 사용법 |
+|--------|------|--------|
+| `MERGE` | 브랜치 병합 (머지 커밋 생성) | `MERGE <branch_name>` |
+| `DIFF` | 두 파일 비교 (LCS 기반) | `DIFF <file1> <file2>` |
+| `BENCHMARK` | 정렬 알고리즘 성능 비교 | `BENCHMARK` |
+
+### CLI 규칙
+
+- 명령어는 **대소문자를 구분하지 않습니다** (예: `INIT`, `init`, `Init` 모두 가능)
+- 공백이 포함된 인자는 **따옴표로 감쌉니다** (예: `COMMIT "Add login feature"`)
+- 잘못된 입력 시 표준 에러 메시지를 출력합니다
+
+## 🏛 아키텍처 및 설계 원칙
+
+본 프로젝트는 철저한 소프트웨어 엔지니어링 원칙에 기반하여 리팩토링 및 패키지화되었습니다.
+
+### 📊 시스템 아키텍처 및 모듈 흐름
 
 ```mermaid
 flowchart TD
-    subgraph "glad 구조 (풍부한 도메인 모델 및 기능 확장)"
-        G_CLI[minigit/__main__.py] --> G_MOD[models.py: 도메인 및 예외]
-        G_CLI --> G_GRA[graph.py: DAG 알고리즘]
-        G_CLI --> G_SRT[sorting.py: Merge 및 Quick]
-        G_CLI --> G_IDX[index.py: 역색인]
-        G_CLI --> G_DIF[diff.py: LCS 줄단위 비교]
+    subgraph CLI ["CLI Layer (REPL)"]
+        Main["__main__.py (MiniGitCLI)"]
     end
 
-    subgraph "codyssey-b3-2 구조 (린 아키텍처 및 단일패스 최적화)"
-        C_CLI[mini_git/cli.py] --> C_REP[repo.py: 상태 및 해시 생성]
-        C_CLI --> C_GRA[graph.py: 역방향 BFS 및 그리디]
-        C_CLI --> C_SRT[sorting.py: 안정 Merge Sort]
-        C_CLI --> C_IDX[index.py: 역색인]
-        C_REP --> C_COM[commit.py: 노드 모델]
+    subgraph Core ["Core Data Layer"]
+        Models["models.py (Repository, Commit)"]
+        Constants["constants.py (Enums, Messages)"]
+    end
+
+    subgraph Algos ["Algorithm Layer"]
+        Graph["graph.py (BFS, DFS, Kahn's)"]
+        Sorting["sorting.py (Merge, Quick Sort)"]
+        Index["index.py (Inverted Index)"]
+        Diff["diff.py (LCS Diff)"]
+    end
+
+    Main -->|Controls Repository| Models
+    Main -->|Calls topological_sort, BFS, DFS| Graph
+    Main -->|Calls merge_sort, benchmarks| Sorting
+    Main -->|Calls diff_files| Diff
+    Main -->|Calls search_keyword / search_author| Models
+
+    Models -->|Updates index during commit| Index
+    Models -.->|Reads constants| Constants
+```
+
+- **OOP 기반 캡슐화 및 단일 책임 원칙 (SRP)**: `MiniGitCLI` 클래스 객체 안으로 캡슐화하여 REPL 상태와 라우팅 로직을 독립시켰습니다.
+- **데이터 파이프라인 (3-Step Data Flow)**: 핵심 비즈니스 로직은 오류 방지와 가독성을 위해 반드시 `1. Data Refinement (정제)`, `2. Validation (유효성 검사)`, `3. Logic Execution (실행)`의 명확한 3단계 흐름으로 분리되어 있습니다.
+- **매직 스트링 중앙화**: 애플리케이션 내의 모든 명령어 문자열, 시스템 메시지, 에러 출력 등은 하드코딩되지 않고 `constants.py`에 Enum 및 텍스트 클래스로 중앙 집중화되어 관리됩니다.
+- **타입 힌트 적용**: 명세서로서 기능하는 코드를 지향하여 모든 변수, 파라미터, 반환값에 Python `typing` 모듈을 엄격하게 적용했습니다.
+
+## 📁 프로젝트 구조
+
+```text
+glad/
+ ├── minigit/
+ │    ├── __init__.py      # 패키지 초기화
+ │    ├── __main__.py      # CLI 진입점 (MiniGitCLI 캡슐화)
+ │    ├── constants.py     # 매직 스트링 및 Enum 중앙 관리
+ │    ├── models.py        # 핵심 데이터 모델 (Commit, Repository)
+ │    ├── graph.py         # 그래프 알고리즘 (위상 정렬, BFS, DFS)
+ │    ├── sorting.py       # 정렬 알고리즘 (Merge, Quick Sort)
+ │    ├── index.py         # 역색인 (키워드/작성자 기반 검색)
+ │    └── diff.py          # Diff 기능 (LCS 기반 파일 비교)
+ ├── README.md             # 이 문서
+ └── study_guide.md        # 초상세 학습 가이드
+```
+
+## 🧠 구현된 알고리즘
+
+### 자료구조
+
+| 자료구조 | 용도 | 위치 |
+|----------|------|------|
+| **DAG (방향성 비순환 그래프)** | 커밋 히스토리 구조 | `minigit/models.py` |
+| **해시맵 (dict)** | O(1) 커밋 조회 | `minigit/models.py` |
+| **역색인 (Inverted Index)** | O(1) 키워드/작성자 검색 | `minigit/index.py` |
+
+### 알고리즘
+
+| 알고리즘 | 용도 | 시간복잡도 | 위치 |
+|----------|------|-----------|------|
+| **SHA-1 해싱** | 커밋 고유 식별자 생성 | O(1) | `minigit/models.py` |
+| **Kahn's Algorithm** | LOG 위상 정렬 | O(V+E) | `minigit/graph.py` |
+| **BFS (너비 우선 탐색)** | PATH 최단 경로 | O(V+E) | `minigit/graph.py` |
+| **DFS (깊이 우선 탐색)** | ANCESTORS 조상 탐색 | O(V+E) | `minigit/graph.py` |
+| **Merge Sort (머지 정렬)** | LOG --sort-by 안정 정렬 | O(n log n) | `minigit/sorting.py` |
+| **Quick Sort (퀵 정렬)** | 벤치마크용 불안정 정렬 | O(n log n) avg | `minigit/sorting.py` |
+| **LCS (최장 공통 부분수열)** | DIFF 파일 비교 | O(m×n) | `minigit/diff.py` |
+
+### 📊 핵심 알고리즘 흐름도
+
+#### 1. 위상 정렬 (Kahn's Algorithm)
+`LOG` 명령어 실행 시 커밋 히스토리(DAG)를 부모-자식 순서대로 정렬하기 위해 사용됩니다.
+
+```mermaid
+flowchart TD
+    Start(["시작: topological_sort"]) --> InitInDegree["1. 모든 커밋의 진입 차수(in-degree) 계산"]
+    InitInDegree --> FindZero["2. 진입 차수가 0인 커밋(HEAD/잎 노드)을 Queue에 추가"]
+    FindZero --> Loop{"Queue가 비어있지 않은가?"}
+    Loop -->|예| Pop["3. Queue에서 커밋을 꺼내어 결과 리스트에 추가"]
+    Pop --> Foreach["4. 현재 커밋의 각 부모 커밋에 대해"]
+    Foreach --> Decrement["부모 커밋의 진입 차수 1 감소"]
+    Decrement --> CheckZero{"진입 차수가 0이 되었는가?"}
+    CheckZero -->|예| Push["Queue에 부모 커밋 추가"]
+    Push --> Foreach
+    CheckZero -->|아니오| Foreach
+    Foreach -->|모든 부모 처리 완료| Loop
+    Loop -->|아니오| Reverse["5. 결과 리스트 뒤집기 (부모가 먼저 출력되도록)"]
+    Reverse --> End(["종료: 정렬된 커밋 리스트 반환"])
+```
+
+#### 2. LCS Diff (최장 공통 부분수열)
+`DIFF` 명령어 실행 시 두 파일 간의 차이점을 줄 단위로 비교하기 위해 사용되는 동적 계획법(DP) 알고리즘입니다.
+
+```mermaid
+flowchart TD
+    subgraph LCS_Table ["LCS DP 테이블 채우기 (compute_lcs_table)"]
+        Match{"lines_a[i-1] == lines_b[j-1]?"}
+        Match -->|예| Diagonal["dp[i][j] = dp[i-1][j-1] + 1"]
+        Match -->|아니오| Max["dp[i][j] = max(dp[i-1][j], dp[i][j-1])"]
+    end
+
+    subgraph Backtracking ["역추적 및 Diff 생성 (compute_diff)"]
+        StartBacktrack(["시작: dp[m][n]부터 역추적"]) --> LoopCond{"i > 0 또는 j > 0?"}
+        LoopCond -->|예| Equal{"lines_a[i-1] == lines_b[j-1]?"}
+        
+        Equal -->|예| Keep["' ' (공통 줄) 추가 및 대각선 이동 (i-1, j-1)"]
+        Equal -->|아니오| Compare{"dp[i-1][j] >= dp[i][j-1]?"}
+        
+        Compare -->|예| Del["'-' (삭제 줄) 추가 및 위로 이동 (i-1, j)"]
+        Compare -->|아니오| Add["'+' (추가 줄) 추가 및 왼쪽 이동 (i, j-1)"]
+        
+        Keep --> LoopCond
+        Del --> LoopCond
+        Add --> LoopCond
+        
+        LoopCond -->|아니오| ReverseDiff["결과 리스트를 뒤집어 원래 순서로 복원"]
     end
 ```
 
-| 비교 항목 | `glad` 구현체 | `codyssey-b3-2` 구현체 | 핵심 시사점 및 토론 포인트 |
-| :--- | :--- | :--- | :--- |
-| **모듈 분리 구조** | `models`, `graph`, `sorting`, `index`, `diff`, `constants` (도메인 분리) | `cli`, `repo`, `graph`, `sorting`, `index`, `commit` (상태-엔진 분리) | `glad`는 풍부한 도메인 모델 중심, `codyssey-b3-2`는 Repository 패턴 중심의 린(Lean) 구성 |
-| **해시 생성 전략** | SHA-1 기반 내용 해싱 + 중복 방지 접미사 카운터 | `sha1(순번:salt:message:timestamp)` 앞 6자리 + salt 증가 재시도 | 두 구현체 모두 세션 내 유일성을 보장하며 충돌 회피 메커니즘을 견고하게 탑재 |
-| **PATH 최단경로** | **양방향 BFS + 경로 큐 유지**<br>(모든 최단 경로 수집 후 사전순 문자열 정렬) | **목적지 역방향 BFS + 탐욕적(Greedy) 전진**<br>($O(V+E)$ 단일 패스로 사전순 최소 경로 도출) | **★ 핵심 토론 포인트!**<br>경로 열거 정렬 vs 목적지 거리 기반 그리디 탐색의 공간/시간 복잡도 트레이드오프 |
-| **정렬 알고리즘** | **Merge Sort + Quick Sort 듀얼 구현**<br>(비교 벤치마크 기능 제공) | **Merge Sort 단일 구현**<br>(최악 $O(N^2)$ 회피 및 `<=` 연산자로 안정 정렬 보장) | 정렬 알고리즘 선택 시 최악 시간복잡도($O(N \log N)$)와 안정 정렬(Stable Sort)의 중요성 |
-| **위상 정렬 (LOG)** | **Kahn In-degree 반복문 큐 탐색** | **Kahn In-degree 반복문 인덱스 포인터 탐색** | 둘 다 재귀 한계를 극복하고 $O(V+E)$ 반복문 Kahn 알고리즘을 채택하여 부모 우선 출력 보장 |
-| **역색인 (SEARCH)** | `set` 기반 토큰-커밋 매핑<br>(중복 방지 및 $O(1)$ 멤버십 체크) | `list` 기반 토큰-커밋 매핑 (`by_keyword`, `by_author`) | 역색인 딕셔너리의 값으로 `set` vs `list`를 사용했을 때의 메모리 및 검색 순서 보존 특성 |
-| **보너스 기능** | **LCS(최장 공통 부분수열) 기반 DIFF 기능 구현** | **단위 테스트 스위트(`test_mini_git.py`) 및 구술 대비 문서화** | `glad`는 알고리즘 기능 확장(DP), `codyssey-b3-2`는 테스트 주도 검증 및 설계 근거 문서화에 강점 |
+## 🌟 보너스 과제
 
----
+### 5.1 Diff (파일 비교)
+- LCS(Longest Common Subsequence) 알고리즘을 직접 구현
+- 동적 프로그래밍(DP) 기반 O(m×n) 시간복잡도
+- 추가(`+`), 삭제(`-`), 공통(` `) 줄을 구분하여 출력
 
-## 🔍 3. 5대 핵심 알고리즘별 접근 방식 딥다이브
+### 5.2 Merge (브랜치 병합)
+- 부모가 2개인 머지 커밋을 생성
+- DAG에서 "두 경로가 만나는 지점" 구현
 
-### ① PATH (최단 경로 탐색 및 사전순 타이브레이킹)
-- **공통 기반**: 커밋의 원래 간선(자식 $	o$ 부모)만 따라가면 갈라진 브랜치 간 경로를 찾을 수 없으므로, 두 구현체 모두 **무방향(Undirected) 양방향 인접 리스트**를 구축하여 탐색합니다.
-- **알고리즘적 차이점**:
-  - `glad`: 정석적인 BFS 큐에 경로 리스트(`[node1, node2, ...]`)를 담아 전진하며, 타겟에 도달한 최단 경로들을 모은 뒤 최종적으로 사전순 문자열 정렬을 수행합니다.
-  - `codyssey-b3-2`: 목적지(`end`)에서 출발하여 모든 노드까지의 홉 거리(`dist_to_end`)를 먼저 계산해 둡니다. 그 후 출발점(`start`)에서 매 걸음마다 **"거리가 1 줄어드는 이웃 노드 중 해시가 사전순으로 가장 작은 노드"를 그리디하게 선택**합니다. 모든 최단 경로는 홉 수가 같으므로 첫 홉의 사전순 최소가 전체 경로의 사전순 최소와 일치한다는 원리를 레버리지하여, 전체 경로를 열거하지 않고 $O(V+E)$ 안에 끝냅니다.
+### 5.3 정렬 알고리즘 성능 비교
+- Merge Sort vs Quick Sort 벤치마크
+- 다양한 입력 크기(10~5000)에서 실행 시간 측정
+- 안정 정렬 vs 불안정 정렬 비교
 
-### ② LOG (위상 정렬, Topological Sort)
-- **요구조건**: 일반적인 Git log(최신순)와 달리, 본 미션은 **"부모 커밋이 항상 자식 커밋보다 먼저 출력"**되어야 합니다.
-- **두 구현체의 공통점**:
-  - `indegree` 딕셔너리를 구성하여 부모가 0개인 루트 커밋부터 큐에 넣고, 하나씩 꺼내며 자식들의 진입차수를 1씩 감소시키는 **Kahn 알고리즘**을 정석 구현했습니다.
-  - 단순 커밋 생성 순서(`order`)에 의존하지 않고 실제 그래프 위상 정렬을 수행함으로써, 추후 외부 커밋 히스토리를 병합/가져올 때도 순서 무결성을 보장하도록 설계되었습니다.
+## 💡 사용 예시
 
-### ③ 정렬 엔진 (`sorted()` 표준 API 전면 배제)
-- **요구조건**: Python 내장 정렬(`sorted()`, `list.sort()`)을 일체 쓰지 않고 직접 정렬 엔진을 구축해야 합니다.
-- **설계 철학 대조**:
-  - `glad`: 병합 정렬(Merge Sort)과 퀵 정렬(Quick Sort)을 모두 구현하여 알고리즘별 특성을 비교할 수 있도록 구조화했습니다.
-  - `codyssey-b3-2`: 퀵 정렬의 최악 시간복잡도($O(N^2)$) 퇴화 위험을 원천 차단하고, `LOG --sort-by=author` 시 동일 작성자의 커밋 순서가 역전되지 않도록 병합 함수에서 `<` 대신 `<=`를 사용하여 **안정 정렬(Stable Sort)** 특성을 엄밀하게 챙겼습니다.
+### 🔄 주요 명령어 실행 흐름 (INIT -> COMMIT -> LOG)
 
-### ④ SEARCH (역색인 검색 엔진)
-- **요구조건**: 커밋 메시지를 순회($O(N)$)하지 않고, 단어와 작성자 기반으로 즉시 검색할 수 있어야 합니다.
-- **구현 메커니즘**:
-  - 두 구현체 모두 커밋 생성(`COMMIT`) 시점에 메시지를 소문자로 정규화(`lower()`)하고 공백으로 분리(`split()`)하여 `keyword -> [commit_hash]` 해시맵을 구축합니다.
-  - 이로써 검색 시에는 $O(1)$의 딕셔너리 키 조회로 즉각 후보 커밋을 도출합니다.
+```mermaid
+sequenceDiagram
+    autonumber
+    actor User as User
+    participant CLI as "__main__.py (MiniGitCLI)"
+    participant Repo as "models.py (Repository)"
+    participant Index as "index.py (InvertedIndex)"
+    participant Graph as "graph.py (topological_sort)"
 
-### ⑤ DIFF (보너스: 최장 공통 부분수열 LCS)
-- `glad` 구현체는 동적 계획법(Dynamic Programming) 기반의 LCS 알고리즘(`diff.py`)을 추가 탑재하여, 두 텍스트 파일 간의 줄 단위 추가(`+`), 삭제(`-`), 유지(` `)를 완벽하게 시각화 비교할 수 있도록 확장했습니다.
+    Note over User, Graph: 1. INIT Command Flow
+    User->>CLI: INIT 'Alice'
+    CLI->>Repo: init('Alice')
+    Repo->>Repo: Reset commits & branches, create InvertedIndex
+    Repo-->>CLI: INIT_SUCCESS message
+    CLI-->>User: Initialized repository...
 
----
+    Note over User, Graph: 2. COMMIT Command Flow
+    User->>CLI: COMMIT 'Initial commit'
+    CLI->>Repo: commit('Initial commit')
+    Repo->>Repo: Create Commit node (hash, message, etc.)
+    Repo->>Index: add_commit(commit)
+    Note over Index: Tokenize message & map key/author to hash
+    Repo-->>CLI: COMMIT_SUCCESS message
+    CLI-->>User: [main a1b2c3] Initial commit
 
-## 🎙️ 4. 피어 세션 1시간 실전 대화 가이드 (함께 보며 논의할 주제)
+    Note over User, Graph: 3. LOG Command Flow
+    User->>CLI: LOG
+    CLI->>Repo: get_all_commits()
+    Repo-->>CLI: Dict[hash, Commit]
+    CLI->>Graph: topological_sort(commits)
+    Note over Graph: Run Kahn's Algorithm
+    Graph-->>CLI: List[Commit] (sorted order)
+    CLI-->>User: Print formatted commit logs
+```
 
-컴퓨터 화면에 이 보고서를 띄워두고 아래 순서로 대화를 나누면 1시간 동안 가장 밀도 높은 피어 러닝이 가능합니다.
+### 💻 CLI 실행 예시
 
-### [Phase 1: 00~15분] 아키텍처 개요 및 CLI 시연
-- 각자의 REPL 인터페이스에서 기본 브랜치 생성, 커밋, 스위치 시연.
-- **논의 주제**: "Repository 상태 관리 클래스와 CLI 컨트롤러의 책임을 어떻게 나누셨나요?"
+```text
+mini-git> init "Alice"
+Initialized repository.
+Current branch: main
+Current user: Alice
 
-### [Phase 2: 15~35분] PATH 최단경로 알고리즘 비교 (★ 하이라이트)
-- **`glad`의 접근**: 경로 큐 기반 BFS vs **`codyssey-b3-2`의 접근**: 목적지 역방향 거리 + 그리디 홉 선택.
-- **토론 질문**:
-  > *"목적지에서 역방향 거리를 구해두고 매번 거리가 1 감소하는 이웃 중 최소 해시를 그리디하게 고르는 방식이 항상 전역 사전순 최소 경로를 보장하는 이유에 대해 어떻게 생각하시나요?"*  
-  > *(경로의 모든 홉 수가 동일하므로, 앞선 노드의 사전순 우위가 전체 문자열의 사전순 우위를 결정한다는 증명 논의)*
+mini-git> commit "Initial commit"
+[main a1b2c3] Initial commit
 
-### [Phase 3: 35~50분] 정렬의 안정성과 위상 정렬 엣지 케이스
-- **안정 정렬(Stable Sort)**: `_merge` 함수에서 `<=` 연산자가 동점(동일 작성자) 커밋의 시간 순서를 보존하는 메커니즘 확인.
-- **위상 정렬**: 머지 커밋(부모 2개)이 존재하는 다이아몬드 그래프 환경에서 Kahn 알고리즘의 동작 검증.
+mini-git> branch feature
+Created branch: feature
 
-### [Phase 4: 50~60분] 확장성 및 상호 피드백
-- `glad`의 LCS 기반 DIFF 보너스 구현 공유.
-- `index.py`의 토큰화 확장성(특수문자, 구두점 정규식 처리 방안) 논의.
-- 상호 학습 회고 및 상호 평가 완료.
+mini-git> switch feature
+Switched to branch: feature
+
+mini-git> commit "Add login feature"
+[feature d4e5f6] Add login feature
+
+mini-git> switch main
+Switched to branch: main
+
+mini-git> commit "Add payment feature"
+[main g7h8i9] Add payment feature
+
+mini-git> log
+commit a1b2c3 (Alice, 2026-05-24 07:30:00)
+  Initial commit
+
+commit g7h8i9 (Alice, 2026-05-24 07:30:02) [main] (HEAD)
+  Add payment feature
+
+commit d4e5f6 (Alice, 2026-05-24 07:30:01) [feature]
+  Add login feature
+
+mini-git> search "login"
+Found 1 commit(s) for keyword 'login':
+
+  - d4e5f6: Add login feature
+
+mini-git> merge feature
+Merged 'feature' into 'main'.
+[main x1y2z3] Merge branch 'feature' into main
+
+mini-git> exit
+Goodbye!
+```
+
+## 🔑 제약 사항
+
+- `sorted()`, `list.sort()` 등 Python 표준 정렬 API **사용 금지** → 직접 구현
+- 그래프 전용 라이브러리 **사용 금지** → 인접 리스트 직접 구축
+- 파일 내용 추적 **미구현** (커밋 메타데이터 중심)
+- 네트워크 통신 **미구현**
+- 데이터 영속성 **미구현** (메모리 상 동작)
