@@ -59,8 +59,9 @@ def find_shortest_path(
 ) -> list[str] | None:
     """부모 연결을 양방향으로 본 최단 경로를 BFS로 찾는다.
 
-    같은 길이의 경로가 여러 개면 각 이웃을 ID 사전순으로 방문한다.
-    그러면 먼저 찾은 경로가 경로 문자열의 사전순으로도 가장 앞선다.
+    같은 길이면 ID 뒤의 구분자까지 비교해 전체 경로 문자열 순서를 따른다.
+    'a'와 'a!'처럼 ID가 접두사를 공유해도 'a->'와 'a!->'를 비교한다.
+    ID 안의 '->'는 금지한다. 저장소가 생성하는 ID에는 이 구분자가 없다.
     """
     if start not in commits or target not in commits:
         return None
@@ -69,6 +70,8 @@ def find_shortest_path(
 
     adjacency: dict[str, list[str]] = {}
     for commit_hash in commits:
+        if "->" in commit_hash:
+            raise ValueError("Commit ID cannot contain the path separator '->'")
         adjacency[commit_hash] = []
     for commit_hash, commit in commits.items():
         for parent_hash in commit.parents:
@@ -85,7 +88,7 @@ def find_shortest_path(
     while queue:
         current = queue.popleft()
         # 같은 거리의 경로 중 사전순 첫 경로를 고르려고 이웃을 정렬한다.
-        for neighbor in merge_sort(adjacency[current]):
+        for neighbor in merge_sort(adjacency[current], key_func=lambda neighbor: neighbor + "->"):
             if neighbor in visited:
                 continue
             # 큐에 넣을 때 방문 표시하여 여러 경로가 같은 ID를 중복 예약하지 않게 한다.

@@ -2,7 +2,11 @@
 
 from __future__ import annotations
 
-from minigit.constants import ErrorMessages
+from minigit.constants import ConfigConstants, ErrorMessages
+
+
+class DiffLimitError(ValueError):
+    """파일 읽기 또는 LCS 표 할당의 상한을 넘긴 입력."""
 
 
 def compute_lcs_table(lines_a: list[str], lines_b: list[str]) -> list[list[int]]:
@@ -12,6 +16,11 @@ def compute_lcs_table(lines_a: list[str], lines_b: list[str]) -> list[list[int]]
     """
     rows = len(lines_a) + 1
     columns = len(lines_b) + 1
+    cells = rows * columns
+    if cells > ConfigConstants.MAX_DIFF_CELLS:
+        raise DiffLimitError(
+            f"LCS table needs {cells} cells; limit is {ConfigConstants.MAX_DIFF_CELLS}."
+        )
     dp: list[list[int]] = []
     for _ in range(rows):
         # 각 행을 새로 만들어야 한 행 변경이 다른 행에 번지지 않는다.
@@ -54,16 +63,21 @@ def compute_diff(lines_a: list[str], lines_b: list[str]) -> list[tuple[str, str]
 
 
 def _read_lines(path: str) -> list[str]:
-    """with 블록이 끝나면 파일이 닫힌다. 읽기 오류는 호출자에게 전달한다."""
-    # encoding='utf-8'을 명시해 컴퓨터의 기본 문자 인코딩에 의존하지 않는다.
-    with open(path, "r", encoding="utf-8") as file:
-        return file.read().splitlines()
+    """상한 내에서 파일을 읽고 UTF-8 줄 목록으로 바꾼다."""
+    limit = ConfigConstants.MAX_DIFF_FILE_BYTES
+    # 파일이 크더라도 상한보다 한 바이트만 더 읽어 초과를 판단한다.
+    with open(path, "rb") as file:
+        contents = file.read(limit + 1)
+    if len(contents) > limit:
+        raise DiffLimitError(f"{path} exceeds the {limit}-byte file limit.")
+    return contents.decode("utf-8").splitlines()
 
 
 def diff_files(file1_path: str, file2_path: str) -> str:
     """줄 앞의 공백/+/−로 공통/추가/삭제를 표시하고 개수를 요약한다."""
-    first = file1_path.strip()
-    second = file2_path.strip()
+    # 따옴표로 묶어 전달한 경로의 공백도 파일 이름의 일부일 수 있다.
+    first = file1_path
+    second = file2_path
     contents: list[list[str]] = []
     for path in (first, second):
         try:
@@ -71,12 +85,18 @@ def diff_files(file1_path: str, file2_path: str) -> str:
         except FileNotFoundError:
             # 파일이 아예 없을 때는 어떤 경로가 문제인지 보여 준다.
             return ErrorMessages.FILE_NOT_FOUND.format(path=path)
-        except (OSError, UnicodeError) as error:
+        except DiffLimitError as error:
+            return ErrorMessages.DIFF_LIMIT.format(reason=error)
+        except (OSError, ValueError) as error:
+            # NUL 경로의 ValueError와 UTF-8 해석 오류(하위 클래스)를 처리한다.
             return ErrorMessages.FILE_READ_ERROR.format(path=path, error=error)
         contents.append(lines)
 
     lines_a, lines_b = contents
-    result = compute_diff(lines_a, lines_b)
+    try:
+        result = compute_diff(lines_a, lines_b)
+    except DiffLimitError as error:
+        return ErrorMessages.DIFF_LIMIT.format(reason=error)
     output = [f"--- {first}", f"+++ {second}", ""]
     added = removed = unchanged = 0
     # (기호, 줄 내용) 튜플을 두 변수로 나눠 받는 문법을 '언패킹'이라 한다.

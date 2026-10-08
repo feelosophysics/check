@@ -7,6 +7,8 @@
 class ConfigConstants:
     DEFAULT_BRANCH = "main"
     TIME_FORMAT = "%Y-%m-%d %H:%M:%S"
+    MAX_DIFF_FILE_BYTES = 1_048_576
+    MAX_DIFF_CELLS = 1_000_000
 
 
 class ErrorMessages:
@@ -31,6 +33,7 @@ class ErrorMessages:
     MERGE_NO_COMMITS = "Error: Cannot merge branches without commits."
     FILE_NOT_FOUND = "Error: File not found: {path}"
     FILE_READ_ERROR = "Error: Error reading {path}: {error}"
+    DIFF_LIMIT = "Error: DIFF input too large: {reason}"
 
 
 class SystemMessages:

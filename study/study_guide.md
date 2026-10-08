@@ -52,12 +52,12 @@ Current branch: main
 Current user: Alice Lee
 ```
 
-흐름은 `run() → parse_input() → execute() → handle_init() → Repository.init()`입니다.
+흐름은 `run() → parse_input() → execute() → Repository.init()`입니다.
 
 1. `run()`의 `input("mini-git> ")`이 한 줄을 읽습니다.
 2. `parse_input()`은 `shlex`로 `["INIT", "Alice Lee"]`를 만듭니다. 따옴표 안의 공백은 단어 사이 경계가 아닙니다.
-3. `execute()`는 첫 단어를 대문자로 바꾸어 명령을 고르고, 나머지 `["Alice Lee"]`를 `handle_init()`에 전달합니다.
-4. `handle_init()`은 인자가 **정확히 하나**인지 검사한 다음 `self.repo.init(args[0])`을 부릅니다. 리스트의 첫 칸 번호는 0입니다.
+3. `execute()`는 첫 단어를 대문자로 바꾸어 명령을 고르고, 나머지 `["Alice Lee"]`를 인자로 분리합니다. 저장소 명령 표에서 INIT에 연결된 함수 `repo.init`과 오류 문구를 꺼냅니다.
+4. 공통 인자 검사에서 **정확히 하나**인지 확인한 다음 `action(args[0])`을 부릅니다. 여기서 action은 `repo.init`입니다. 함수도 표의 값으로 보관할 수 있으며, 괄호를 붙여 호출할 때 실행됩니다.
 5. `Repository.init()`은 빈 커밋 표, `{"main": None}` 브랜치 표, 현재 브랜치 `head = "main"`, 작성자를 설정합니다. 문자열 결과를 `run()`이 출력합니다.
 
 현재 상태를 확인해 보세요.
@@ -211,7 +211,7 @@ Path: <C의 ID> -> <B의 ID> -> <D의 ID>
 - `visited`는 이미 발견한 ID의 `set`입니다. 되돌아가며 반복 방문하지 않게 합니다.
 - `previous[새 ID] = 발견해 준 ID`는 나중에 목적지에서 출발점까지 되짚는 발자국입니다.
 
-`set`은 같은 값을 두 번 담지 않으며 평균 O(1)에 포함 여부를 확인합니다. BFS가 목적지를 **처음** 발견했을 때 거리가 가장 짧습니다. 최단 경로가 여러 개라면 각 이웃 ID를 우리가 만든 머지 정렬로 사전순 방문합니다. 예를 들어 `r → a → z`와 `r → b → z`가 모두 2칸이면 `a`가 앞서므로 첫 번째 경로를 고릅니다. 길이도 같고 앞부분도 같다면 다음 ID 비교로 결정됩니다.
+`set`은 같은 값을 두 번 담지 않으며 평균 O(1)에 포함 여부를 확인합니다. BFS가 목적지를 **처음** 발견했을 때 거리가 가장 짧습니다. 최단 경로가 여러 개라면 이웃 ID 뒤에 `->`를 붙인 값을 우리가 만든 머지 정렬로 비교합니다. 예를 들어 `r → a → z`와 `r → b → z`는 a가 먼저지만, `a`와 `a!`처럼 접두사가 겹칠 때는 `a!->`가 `a->`보다 먼저입니다. 구분자까지 비교해야 전체 경로 문자열의 사전순과 맞습니다. ID 자체에 `->`를 넣지는 않습니다.
 
 서로 다른 첫 커밋에서 시작한 두 갈래는 연결되지 않을 수 있습니다. `INIT Alice` 직후, 커밋 전에 `BRANCH spare`를 만들고 `main`과 `spare`에서 각각 첫 커밋을 만들면 두 개의 뿌리가 생깁니다. 두 뿌리 사이의 `PATH`는 `No path`입니다. 없는 ID를 입력하면 `Unknown commit` 오류가 먼저 나옵니다.
 
@@ -342,7 +342,7 @@ Sorting benchmark (seconds; smaller is faster)
 
 ```text
 입력 한 줄
-  ↓  __main__.py: parse_input → execute → handle_...
+  ↓  __main__.py: parse_input → execute → 저장소 함수 / handle_...
 Repository 상태 변경 ──→ models.py: Commit / branches / head
         │
         ├─ COMMIT·MERGE → index.py: 단어·작성자 역색인 갱신
@@ -365,7 +365,7 @@ Repository 상태 변경 ──→ models.py: Commit / branches / head
 | 모든 조상 | `graph.find_ancestors()` |
 | 단어·작성자 역색인 | `InvertedIndex` |
 | 직접 구현한 정렬 | `sorting.merge_sort()`, `quick_sort()` |
-| REPL과 오류 | `MiniGitCLI.run()`, `parse_input()`, 각 `handle_...` |
+| REPL과 오류 | `MiniGitCLI.run()`, `parse_input()`, `execute()`의 공통 검사와 개별 `handle_...` |
 
 ### 파일을 불러오는 문법과 실행 시작점
 
@@ -387,3 +387,12 @@ Repository 상태 변경 ──→ models.py: Commit / branches / head
 확인 기준: (1) `STATUS`에는 브랜치와 빈 HEAD가, `LOG`에는 `No commits yet.`가 나옵니다. (2) 두 커밋에는 공통 부모가 없어 양방향 간선으로도 연결되지 않습니다. (3) `USER`는 과거 커밋을 고치지 않습니다. (4) 병합 커밋은 두 부모의 조상을 모두 가집니다. (5) 단어 하나 검색과 연속 구절 검색은 조건이 다릅니다. (6) 날짜순 정렬은 부모 우선 조건을 강제하지 않습니다.
 
 실제 동작을 자동으로 확인하려면 루트에서 `python -m unittest discover -s tests -v`를 실행하세요. 테스트는 읽는 순서와 별개로, 요구사항을 코드가 계속 만족하는지 확인하는 도구입니다.
+
+
+## 2026-10-07 구현 검토 반영
+
+인자 하나를 받는 INIT·COMMIT·USER·BRANCH·SWITCH·MERGE는 execute의 작은 명령 표와 공통 검사로 연결합니다. 다른 문법과 출력 처리가 필요한 명령은 개별 handler를 유지합니다. LOG와 ANCESTORS는 커밋 표시 함수를 공유합니다.
+
+PATH 동률 비교는 ID 뒤의 `->`까지 비교합니다. ID에 경로 구분자를 넣는 것은 허용하지 않습니다. 현재 생성되는 ID는 이 제한을 만족합니다.
+
+터미널 출력에서는 C0/C1 제어문자를 보이는 표기로 바꾸고 원본 메시지는 보존합니다. DIFF는 파일당 1,048,576바이트, LCS 표는 1,000,000칸을 상한으로 두며 경로 오류·UTF-8 오류·상한 초과를 안내합니다. 이 상한은 학습용 프로그램의 자원 정책이며 알고리즘의 시간복잡도를 바꾸지 않습니다.

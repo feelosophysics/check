@@ -8,7 +8,7 @@ from pathlib import Path
 from unittest.mock import patch
 
 from minigit.__main__ import MiniGitCLI
-from minigit.diff import compute_diff, diff_files
+from minigit.diff import DiffLimitError, compute_diff, compute_lcs_table, diff_files
 from minigit.graph import find_ancestors, find_shortest_path, topological_sort
 from minigit.models import Commit
 from minigit.sorting import benchmark_sorts, merge_sort, quick_sort
@@ -192,6 +192,107 @@ class MiniGitTests(unittest.TestCase):
         self.assertIn("quick", result)
         self.assertIn("       3 |", result)
         self.assertIn("      10 |", result)
+
+    def test_empty_execute_and_repository_args_preserve_state(self):
+        self.assertIn("Invalid args", self.cli.execute([]))
+        self.command("INIT Alice")
+        self.command("COMMIT start")
+        first = self.cli.repo.get_head_commit_hash()
+        for command in ("INIT", "COMMIT", "USER", "BRANCH", "SWITCH", "MERGE"):
+            for args in ([], ["one", "two"]):
+                with self.subTest(command=command, args=args):
+                    self.assertIn("Invalid args", self.cli.execute([command] + args))
+                    self.assertEqual(self.cli.repo.get_head_commit_hash(), first)
+                    self.assertEqual(self.cli.repo.branches, {"main": first})
+                    self.assertEqual(self.cli.repo.current_user, "Alice")
+                    self.assertEqual(len(self.cli.repo.commits), 1)
+
+    def test_repl_recovers_from_nul_path_and_escapes_output(self):
+        message = "\x1b[2J\x9b31mhidden"
+        inputs = ['DIFF "bad\0path" other.txt', "INIT Alice", f'COMMIT "{message}"', "LOG", "quit"]
+        output = io.StringIO()
+        with patch("builtins.input", side_effect=inputs):
+            with contextlib.redirect_stdout(output):
+                self.cli.run()
+        displayed = output.getvalue()
+        self.assertIn("Error reading", displayed)
+        self.assertIn("Goodbye!", displayed)
+        self.assertNotIn("\x1b", displayed)
+        self.assertNotIn("\x9b", displayed)
+        self.assertIn("\\x1b[2J\\x9b31mhidden", displayed)
+        commit = self.cli.repo.commits[self.cli.repo.get_head_commit_hash()]
+        self.assertEqual(commit.message, message)
+
+    def test_diff_repl_escapes_file_controls(self):
+        with tempfile.TemporaryDirectory() as folder:
+            first = Path(folder) / "old.txt"
+            second = Path(folder) / "new.txt"
+            first.write_text("same\n", encoding="utf-8")
+            second.write_text("same\n\x1b[2Jhidden\n", encoding="utf-8")
+            output = io.StringIO()
+            with patch("builtins.input", side_effect=[f'DIFF "{first}" "{second}"', "quit"]):
+                with contextlib.redirect_stdout(output):
+                    self.cli.run()
+            self.assertIn("+ \\x1b[2Jhidden", output.getvalue())
+            self.assertNotIn("\x1b", output.getvalue())
+
+    def test_diff_file_and_lcs_limits(self):
+        with patch("minigit.constants.ConfigConstants.MAX_DIFF_CELLS", 12):
+            table = compute_lcs_table(["a", "b"], ["a", "b", "c"])
+            self.assertEqual(table[-1][-1], 2)
+            with self.assertRaises(DiffLimitError):
+                compute_lcs_table(["a", "b", "c"], ["a", "b", "c"])
+            with tempfile.TemporaryDirectory() as folder:
+                first = Path(folder) / "first.txt"
+                second = Path(folder) / "second.txt"
+                first.write_text("a\nb\nc\n", encoding="utf-8")
+                second.write_text("a\nb\nc\n", encoding="utf-8")
+                self.assertIn("LCS table needs 16 cells", diff_files(str(first), str(second)))
+        with tempfile.TemporaryDirectory() as folder:
+            first = Path(folder) / "first.txt"
+            second = Path(folder) / "second.txt"
+            first.write_bytes(b"abcdefgh")
+            second.write_bytes(b"abcdefgh")
+            with patch("minigit.constants.ConfigConstants.MAX_DIFF_FILE_BYTES", 8):
+                self.assertIn("1 unchanged line", diff_files(str(first), str(second)))
+                second.write_bytes(b"abcdefghi")
+                self.assertIn("8-byte file limit", diff_files(str(first), str(second)))
+
+    def test_path_string_order_against_all_shortest_paths(self):
+        # 모든 4노드 DAG에서 독립적으로 단순 경로를 열거해 결과를 대조한다.
+        names = ["s", "a", "a!", "t"]
+        edges = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+        for mask in range(1 << len(edges)):
+            commits = {}
+            adjacency = {name: [] for name in names}
+            for index, name in enumerate(names):
+                commits[name] = Commit(name, name, "Alice", index, [])
+            for bit, (parent, child) in enumerate(edges):
+                if mask & (1 << bit):
+                    commits[names[child]].parents.append(names[parent])
+                    adjacency[names[parent]].append(names[child])
+                    adjacency[names[child]].append(names[parent])
+            for start in names:
+                for target in names:
+                    paths = []
+                    pending = [[start]]
+                    while pending:
+                        path = pending.pop()
+                        if path[-1] == target:
+                            paths.append(path)
+                            continue
+                        for neighbor in adjacency[path[-1]]:
+                            if neighbor not in path:
+                                pending.append(path + [neighbor])
+                    expected = min(paths, key=lambda path: (len(path), "->".join(path)), default=None)
+                    with self.subTest(mask=mask, start=start, target=target):
+                        self.assertEqual(find_shortest_path(commits, start, target), expected)
+
+    def test_path_reserved_separator(self):
+        commits = {"s": Commit("s", "root", "A", 1, []),
+                   "a->b": Commit("a->b", "child", "A", 2, ["s"])}
+        with self.assertRaisesRegex(ValueError, "path separator"):
+            find_shortest_path(commits, "s", "a->b")
 
 
 if __name__ == "__main__":

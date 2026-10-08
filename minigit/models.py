@@ -181,10 +181,3 @@ class Repository:
             return None
         # 예: head == 'main'이면 branches['main']의 ID(또는 None)를 돌려준다.
         return self.branches[self.head]
-
-    def get_all_commits(self) -> dict[str, Commit]:
-        return self.commits
-
-    def get_commit(self, commit_hash: str) -> Commit | None:
-        # get은 키가 없을 때 KeyError 대신 None을 돌려준다.
-        return self.commits.get(commit_hash)

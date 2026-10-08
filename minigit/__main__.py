@@ -24,6 +24,24 @@ def format_timestamp(timestamp: float) -> str:
     )
 
 
+def format_commit_details(commit: Commit) -> str:
+    """LOG와 ANCESTORS가 공유하는 커밋 ID·작성자·시각 표시."""
+    return f"{commit.hash} ({commit.author}, {format_timestamp(commit.timestamp)})"
+
+
+def escape_terminal_controls(text: str) -> str:
+    """원본 데이터는 보존하고 출력 경계에서 제어문자를 보이는 표기로 바꾼다."""
+    characters: list[str] = []
+    for character in text:
+        number = ord(character)
+        is_control = number < 32 or 127 <= number <= 159
+        if is_control and character not in ("\n", "\t"):
+            characters.append(f"\\x{number:02x}")
+        else:
+            characters.append(character)
+    return "".join(characters)
+
+
 class MiniGitCLI:
     """명령을 해석하고 Repository와 알고리즘 함수에 일을 맡긴다."""
 
@@ -44,33 +62,6 @@ class MiniGitCLI:
         lexer.commenters = ""
         lexer.escape = ""
         return list(lexer)
-
-    def handle_init(self, args: list[str]) -> str:
-        # len()은 리스트의 항목 수다. 0개뿐 아니라 2개 이상도 문법 오류로 본다.
-        if len(args) != 1:
-            return ErrorMessages.INVALID_INIT
-        # 실제 상태 변경은 Repository가 담당한다. CLI는 입력만 검사한다.
-        return self.repo.init(args[0])
-
-    def handle_commit(self, args: list[str]) -> str:
-        if len(args) != 1:
-            return ErrorMessages.INVALID_COMMIT
-        return self.repo.commit(args[0])
-
-    def handle_user(self, args: list[str]) -> str:
-        if len(args) != 1:
-            return ErrorMessages.INVALID_USER
-        return self.repo.set_user(args[0])
-
-    def handle_branch(self, args: list[str]) -> str:
-        if len(args) != 1:
-            return ErrorMessages.INVALID_BRANCH
-        return self.repo.branch(args[0])
-
-    def handle_switch(self, args: list[str]) -> str:
-        if len(args) != 1:
-            return ErrorMessages.INVALID_SWITCH
-        return self.repo.switch(args[0])
 
     def handle_log(self, args: list[str]) -> str:
         """기본 LOG는 DAG 순서, 옵션 LOG는 직접 구현한 머지 정렬을 쓴다."""
@@ -110,19 +101,19 @@ class MiniGitCLI:
                 branch_labels.setdefault(branch_hash, []).append(branch_name)
 
         lines: list[str] = []
+        head_hash = self.repo.get_head_commit_hash()
         for commit in ordered:
             labels = branch_labels.get(commit.hash, [])
             label_text = ""
             if labels:
                 label_text = f" [{', '.join(labels)}]"
-            is_head = self.repo.get_head_commit_hash() == commit.hash
+            is_head = head_hash == commit.hash
             head_text = ""
             if is_head:
                 head_text = " (HEAD)"
             # f"..."는 중괄호 안의 변수 값을 문자열에 채워 넣는다.
             lines.append(
-                f"commit {commit.hash} ({commit.author}, "
-                f"{format_timestamp(commit.timestamp)}){label_text}{head_text}"
+                f"commit {format_commit_details(commit)}{label_text}{head_text}"
             )
             lines.append(f"  {commit.message}")
             lines.append("")
@@ -158,8 +149,7 @@ class MiniGitCLI:
         for ancestor_hash in ancestors:
             commit = self.repo.commits[ancestor_hash]
             lines.append(
-                f"  {ancestor_hash} ({commit.author}, "
-                f"{format_timestamp(commit.timestamp)}): {commit.message}"
+                f"  {format_commit_details(commit)}: {commit.message}"
             )
         return "\n".join(lines)
 
@@ -197,11 +187,6 @@ class MiniGitCLI:
             lines.append(f"  - {commit.hash}: {commit.message}")
         return "\n".join(lines)
 
-    def handle_merge(self, args: list[str]) -> str:
-        if len(args) != 1:
-            return ErrorMessages.INVALID_MERGE
-        return self.repo.merge(args[0])
-
     def handle_diff(self, args: list[str]) -> str:
         if len(args) != 2 or not all(args):
             return ErrorMessages.INVALID_DIFF
@@ -226,20 +211,26 @@ class MiniGitCLI:
 
     def execute(self, tokens: list[str]) -> str:
         """첫 단어로 명령을 고르고 나머지 단어를 인자로 전달한다."""
+        if not tokens:
+            return ErrorMessages.INVALID_ARGS
         # upper()로 명령 이름만 대문자로 만든다. 메시지와 사용자 이름은 보존한다.
         command = tokens[0].upper()
         # [1:]은 두 번째 원소부터 끝까지의 새 리스트다.
         args = tokens[1:]
-        if command == "INIT":
-            return self.handle_init(args)
-        if command == "COMMIT":
-            return self.handle_commit(args)
-        if command == "USER":
-            return self.handle_user(args)
-        if command == "BRANCH":
-            return self.handle_branch(args)
-        if command == "SWITCH":
-            return self.handle_switch(args)
+        # 이 여섯 명령은 같은 문법이다: 인자 하나 → 저장소의 동작.
+        repository_commands = {
+            "INIT": (self.repo.init, ErrorMessages.INVALID_INIT),
+            "COMMIT": (self.repo.commit, ErrorMessages.INVALID_COMMIT),
+            "USER": (self.repo.set_user, ErrorMessages.INVALID_USER),
+            "BRANCH": (self.repo.branch, ErrorMessages.INVALID_BRANCH),
+            "SWITCH": (self.repo.switch, ErrorMessages.INVALID_SWITCH),
+            "MERGE": (self.repo.merge, ErrorMessages.INVALID_MERGE),
+        }
+        if command in repository_commands:
+            action, invalid_message = repository_commands[command]
+            if len(args) != 1:
+                return invalid_message
+            return action(args[0])
         if command == "LOG":
             return self.handle_log(args)
         if command == "PATH":
@@ -248,8 +239,6 @@ class MiniGitCLI:
             return self.handle_ancestors(args)
         if command == "SEARCH":
             return self.handle_search(args)
-        if command == "MERGE":
-            return self.handle_merge(args)
         if command == "DIFF":
             return self.handle_diff(args)
         if command == "BENCHMARK":
@@ -297,7 +286,7 @@ class MiniGitCLI:
                     continue
                 print(SystemMessages.GOODBYE)
                 break
-            print(self.execute(tokens))
+            print(escape_terminal_controls(self.execute(tokens)))
 
 
 if __name__ == "__main__":
