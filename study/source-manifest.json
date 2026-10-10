@@ -1,6 +1,7 @@
 {
   "date": "2026-10-10",
   "scope": "project:check",
+  "hash_mode": "UTF-8 text: CRLF normalized to LF; binary: exact bytes",
   "files": {
     "src/run_analysis.py": "edb8cb5b04748d2ef4cbf2524d23ccdfd75270c48c4238b8691f781be9d62882",
     "src/pipeline.py": "e0e76f8afea47b3682f08cd018777c296fcea6664b15d78b481cde35fd5de582",
@@ -13,12 +14,12 @@
     "results/figures/04_heatmap.png": "635b696f2a5c02a5b1735569625cd17f68ed2880fc980ccb450d5d4dfe347b4d",
     "results/figures/05_scatter.png": "7cb4ac9f9931bb2d14fba1e2416675337ce0036ed08f9e47f0c4806017a7a87c",
     "results/figures/06_line.png": "1327387ec43eab41fb225ea2f9a2d5385d97421096355cd2554cd6252ba273f6",
-    "data/sample/transactions.csv": "734bd81ebec6335173cbf50c9c583ce897664ce0ec333af2c57684082db3ecda",
-    "data/sample/products.csv": "2fada80381fdcaf5d81deff7d2be686251cad070831c9128e77e506c72f60b67",
+    "data/sample/transactions.csv": "ede38d02ea9b4281a1adec27ccc3bb41a2ef22724bb99aaf4a27a7c091f8d995",
+    "data/sample/products.csv": "c6244b515c15d5f911bca26425cc5187c01207b15d8426f5b8c5ca8dc37c2189",
     "data/sample/images.npy": "a46d01d25f598fdd5ab344fd6b5a25c676be492b3baa95b1a510122dd1263e0d",
-    "results/rfm_customers.csv": "4376d243025f5f5e5fa737926b26eadbc3c0851e4363d047ab804f157ef2c52e",
-    "results/segment_summary.csv": "d06cdd7f287dc0238146d4bfc6f8ae954db57f776f55f41e23cc2c8d0f8aa37a",
-    "results/audit.json": "0bd34a011031d62a54e52e671fbd504f977bf5643869c2073e63e615f56326b9"
+    "results/rfm_customers.csv": "df5ba50e63844e8377dcaf109ed766bbd22534c45ee0f571516756f88f9dcec9",
+    "results/segment_summary.csv": "be341c3fa30aa85b7bb3ef70b5b191abcb476ce8c0d7b436690c86405d27ea7e",
+    "results/audit.json": "a7cce722d95543efcc95b34bb0a026e1364b0832ed1d12529dcdafc483ac8377"
   },
   "excerpts": {
     "flow": {

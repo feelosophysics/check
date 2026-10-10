@@ -1,13 +1,12 @@
 """Validate source fidelity, self-contained assets, DOM references and demo evidence."""
 import base64
-import hashlib
 from html.parser import HTMLParser
 import json
 from pathlib import Path
 import re
 import subprocess
 
-from build_study_guide import ROOT, calculations
+from build_study_guide import ROOT, calculations, digest
 from src.pipeline import DataAnalyzer
 
 
@@ -84,7 +83,7 @@ def main():
     manifest = json.loads((study / "source-manifest.json").read_text(encoding="utf-8"))
     embedded = json.loads(re.search(r'<script id="guide-data"[^>]*>([\s\S]*?)</script>', text).group(1))
     for file, expected in manifest["files"].items():
-        actual = hashlib.sha256((ROOT / file).read_bytes()).hexdigest()
+        actual = digest((ROOT / file).read_bytes(), text=Path(file).suffix not in (".npy", ".png"))
         assert actual == expected, f"Source changed: {file}"
     for file, source in embedded["sources"].items():
         assert source["text"] == (ROOT / file).read_text(encoding="utf-8")

@@ -38,7 +38,11 @@ EXCERPTS = {
 }
 
 
-def digest(data):
+def digest(data, text=False):
+    # Git can change LF/CRLF at checkout. Ignore that representation difference
+    # for UTF-8 text, while preserving exact binary integrity for images/arrays.
+    if text:
+        data = data.decode("utf-8").replace("\r\n", "\n").encode("utf-8")
     return hashlib.sha256(data).hexdigest()
 
 
@@ -96,15 +100,17 @@ def calculations(analyzer):
 
 def main():
     STUDY.mkdir(parents=True, exist_ok=True)
-    sources, manifest = {}, {"date": "2026-10-10", "scope": "project:check", "files": {}, "excerpts": {}}
+    sources, manifest = {}, {"date": "2026-10-10", "scope": "project:check",
+                            "hash_mode": "UTF-8 text: CRLF normalized to LF; binary: exact bytes",
+                            "files": {}, "excerpts": {}}
     for file in SOURCE_FILES:
         data = (ROOT / file).read_bytes()
-        text = data.decode("utf-8")
+        text = data.decode("utf-8").replace("\r\n", "\n")
         symbols = [{"name": node.name, "line": node.lineno} for node in ast.walk(ast.parse(text))
                    if isinstance(node, (ast.ClassDef, ast.FunctionDef))]
         sources[file] = {"text": text, "symbols": sorted(symbols, key=lambda item: item["line"]),
-                         "sha256": digest(data)}
-        manifest["files"][file] = digest(data)
+                         "sha256": digest(data, text=True)}
+        manifest["files"][file] = digest(data, text=True)
     template = (STUDY / "a1-1.template.html").read_text(encoding="utf-8")
     for name, (file, begin, end) in EXCERPTS.items():
         lines = sources[file]["text"].splitlines()
@@ -134,7 +140,7 @@ def main():
         manifest["files"][image.relative_to(ROOT).as_posix()] = digest(image.read_bytes())
     for file in ["data/sample/transactions.csv", "data/sample/products.csv", "data/sample/images.npy",
                  "results/rfm_customers.csv", "results/segment_summary.csv", "results/audit.json"]:
-        manifest["files"][file] = digest((ROOT / file).read_bytes())
+        manifest["files"][file] = digest((ROOT / file).read_bytes(), text=Path(file).suffix != ".npy")
     if re.search(r"@@[A-Z]+[:@]", template):
         raise RuntimeError("Unresolved template placeholders")
     (STUDY / "a1-1.html").write_text(template, encoding="utf-8")

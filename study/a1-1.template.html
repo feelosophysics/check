@@ -208,11 +208,11 @@
     lines.forEach((text,index)=>{const row=document.createElement('div');row.className='srcrow';row.dataset.line=index+1;const n=document.createElement('span');n.className='line-num';n.textContent=index+1;const code=document.createElement('span');code.textContent=text;row.append(n,code);$('source-window').append(row)});
     $('source-symbol').replaceChildren();const defaultOption=document.createElement('option');defaultOption.value='1';defaultOption.textContent='파일 처음';$('source-symbol').append(defaultOption);
     data.symbols.forEach(symbol=>{const option=document.createElement('option');option.value=symbol.line;option.textContent=`${symbol.name} · L${symbol.line}`;$('source-symbol').append(option)});
-    $('source-hash').textContent='생성 시점 SHA-256: '+data.sha256;highlightLine(line,scroll);
+    $('source-hash').textContent='생성 시점 SHA-256 (줄바꿈 LF 정규화): '+data.sha256;highlightLine(line,scroll);
   }
   function highlightLine(line,scroll=false){const max=Number($('source-line').max);if(!Number.isInteger(line)||line<1||line>max){$('source-status').textContent=`줄 번호는 1–${max} 범위의 정수여야 합니다.`;return false}
     document.querySelectorAll('.srcrow.highlight').forEach(row=>row.classList.remove('highlight'));const row=$('source-window').querySelector(`[data-line="${line}"]`);row.classList.add('highlight');$('source-line').value=line;$('source-status').textContent=`${$('source-file').value} · ${line} / ${max}줄`;
-    const option=[...$('source-symbol').options].find(o=>Number(o.value)===line);if(option)$('source-symbol').value=option.value;
+    const option=[...$('source-symbol').options].filter(o=>Number(o.value)<=line).at(-1);if(option)$('source-symbol').value=option.value;
     $('source-window').scrollTop=row.offsetTop-$('source-window').firstElementChild.offsetTop-72;if(scroll)$('chapter-12').scrollIntoView({block:'start'});return true;
   }
   Object.keys(DATA.sources).forEach(file=>{const option=document.createElement('option');option.value=file;option.textContent=file;$('source-file').append(option)});
