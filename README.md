@@ -174,4 +174,4 @@ uv run python -m src.run_analysis --data-dir data/external --output-dir results/
 
 ## 관련 자료
 
-[과제 원문: Codyssey A1-1](https://usr.codyssey.kr/learning/learningMap?projectNo=136002) · [codsaid의 A1-1](https://github.com/feelosophysics/codsaid/tree/main/02_Advanced/A1-1) · [심화 과정 목차](https://github.com/feelosophysics/codsaid/tree/main/02_Advanced) · [전체 과정](https://github.com/feelosophysics/codsaid)
+[codsaid의 A1-1](https://github.com/feelosophysics/codsaid/tree/main/02_Advanced/A1-1) · [심화 과정 목차](https://github.com/feelosophysics/codsaid/tree/main/02_Advanced) · [전체 과정](https://github.com/feelosophysics/codsaid)

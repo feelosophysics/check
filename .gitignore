@@ -220,3 +220,11 @@ __marimo__/
 # Custom
 .DS_Store
 .notebook-runtime/
+
+# Local assignment reference documents
+mission.html
+mission_text.txt
+mission_requirements.md
+assignment_original.*
+과제원문.*
+과제_원문.*
