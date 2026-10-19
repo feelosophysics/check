@@ -1,0 +1,18 @@
+{
+  "mixed_changes": {
+    "friend_contains_both_additions": true,
+    "mine_default_contains_staged_addition": false,
+    "mine_default_contains_unstaged_addition": true,
+    "mine_staged_only_contains_staged_addition": true
+  },
+  "config_filename": {
+    "dotted_loaded": false,
+    "plain_loaded": true
+  },
+  "mask": {
+    "friend": "email=[REDACTED EMAIL]\nAPI_KEY=[REDACTED]\npassword=[REDACTED]\nip=192.0.2.1",
+    "mine": "email=***@***.***\nAPI_KEY=\"synthetic-demo-key\"\npassword=\"de**********\"\nip=***.***.***.***"
+  },
+  "friend_style_validation_accepts": true,
+  "mine_empty_candidates_result": "API 호출 실패 (응답 텍스트 없음)"
+}
